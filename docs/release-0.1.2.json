@@ -1,7 +1,7 @@
 {
   "version": "0.1.2",
   "date": "2026-08-27",
-  "status": "candidate-taskbar-automated-checks-passed-ui-pending",
+  "status": "candidate-taskbar-user-acceptance-passed",
   "electron": "42.10.1",
   "electronBuilder": "25.1.8",
   "resourceEditor": "resedit@1.7.2",
@@ -22,14 +22,17 @@
     "runtimeFilesByteIdentical": 11499
   },
   "uiAcceptance": {
-    "status": "pending-user",
+    "status": "user-reported-taskbar-issue-resolved",
+    "date": "2026-08-27",
+    "userFeedback": "没问题了",
+    "basis": "User confirmation after the 0.1.2 repin and relaunch checklist; no new screenshot or independently observed step-by-step UI run.",
+    "recommendedArtifact": "dist/0.1.2/win-unpacked/DSH Desktop.exe",
+    "runningArtifactIndependentlyVerifiedThisTurn": false,
     "pending": [
-      "new-taskbar-pin-icon-and-right-click-display-name",
-      "close-and-relaunch-from-new-taskbar-pin",
       "installer-and-portable-entrypoints"
     ],
     "desktopAutomationUsed": false,
-    "oldPinnedShortcutModified": false
+    "oldPinnedShortcutModifiedByAgent": false
   },
   "artifacts": [
     {

@@ -5,13 +5,16 @@ still open, and the traps that cost the most time the first time round.
 
 Written 2026-08-27.
 
-Latest update: **0.1.2 taskbar branding candidate is built and background-tested.**
+Latest update: **0.1.2 taskbar issue accepted by the user on 2026-08-27.**
 The main EXE now embeds the terminal icon and DSH Desktop metadata; the window
 sets explicit relaunch details, including the persistent portable launcher.
 All 17 automated checks pass. Installer/portable payloads match the checked
 EXE and ASAR; the 11,499 runtime files are byte-identical to accepted 0.1.1.
-**Manual taskbar pinning/relaunch is still pending.** The user must unpin the
-old Electron entry, exit 0.1.1 and start 0.1.2. See
+After receiving the 0.1.2 repin/relaunch checklist, the user replied
+“没问题了”. The reported icon/name regression is closed on that basis;
+installer and portable entrypoints remain separately unverified. The agent
+did not observe the UI steps or independently reconfirm the running path in
+this confirmation turn. See
 [taskbar validation](docs/validation-0.1.2.md) and
 [artifact hashes](docs/release-0.1.2.json). Do not click or alter their taskbar.
 
@@ -52,8 +55,10 @@ original `D:\AI\DeepSeek` directory using the patch in this repository.
 
 - **0.1.2 EXE branding:** Windows reads `DSH Desktop` / `0.1.2.0`, every embedded
   icon frame matches `build/icon.ico`, and ASAR integrity matches. Packaged
-  backend/picker tests pass without opening a window. This is not yet manual
-  taskbar acceptance; original 0.1.1 artifacts are retained.
+  backend/picker tests pass without opening a window. The user subsequently
+  confirmed the taskbar issue resolved after receiving the repin/relaunch
+  checklist; no step-by-step UI run was independently observed. Original
+  0.1.1 artifacts are retained.
 - **0.1.1 workspace picker user acceptance passed:** selection, workspace
   reselection and cancellation were confirmed by the user. Their screenshot
   shows the `DSH` workspace in the sidebar and composer.
@@ -97,13 +102,13 @@ original `D:\AI\DeepSeek` directory using the patch in this repository.
    system folder dialog without adding a workspace, not clearing the
    currently selected workspace.
 
-2. **0.1.2 taskbar acceptance is pending.** 0.1.1 had Electron's embedded icon
-   and version metadata because `signAndEditExecutable: false` also skipped
-   resource editing. This caused the pinned icon and right-click app entry to
-   revert to Electron. 0.1.2 separates resource editing from signing (§4), and
-   the EXE/resource checks pass. Existing pins are not automatically updated;
-   the user must repin and verify close/relaunch. Do not clear their icon cache
-   or restart Explorer as a substitute for fixing the old shortcut target.
+2. **Taskbar bug accepted; portable-entrypoint checks remain unverified.**
+   The user confirmed the reported 0.1.2 taskbar issue resolved. Do not reopen
+   that accepted bug or repeat desktop actions. Portable-launcher pinning and
+   close/relaunch still need separate entrypoint acceptance before a full
+   release; the current confirmation did not identify that entrypoint.
+   Resource editing is separate from signing (§4). Existing pins are not
+   automatically migrated; do not clear icon caches or restart Explorer.
 
 3. **Builds are unsigned.** SmartScreen will warn on first run. Removing that
    needs a real code-signing certificate.
@@ -304,7 +309,8 @@ off-machine backup. See [build verification](docs/reproducible-build.md).
    complete locally.
 2. Assess and remediate the build-toolchain audit findings before release (§2.5).
 3. Verify installer and portable entrypoints before a full release (§2.1).
-4. User-verify 0.1.2 taskbar icon/name, close/relaunch and portable pinning (§2.2).
+4. Verify portable-launcher pinning/close/relaunch as part of distribution
+   entrypoint acceptance (§2.2); the originally reported taskbar bug is closed.
 5. Consider a CI workflow. Note it would need the harness fork, a large-heap
    build, and the current separate resource-editing/signing configuration.
 6. Version pinning: `runtime-lock/package.json` pins `0.1.1-rc.2`, with the
