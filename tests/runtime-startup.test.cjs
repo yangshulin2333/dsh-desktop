@@ -12,7 +12,7 @@ const { test } = require('node:test')
 test('the real Electron Node backend serves the web app without credentials or a window', { timeout: 45000 }, async (t) => {
   const root = path.resolve(__dirname, '..')
   const runtime = path.resolve(process.env.DSH_TEST_RUNTIME ?? path.join(root, 'runtime'))
-  const executable = process.env.DSH_TEST_EXECUTABLE ?? path.join(root, 'node_modules/electron/dist/electron.exe')
+  const executable = process.env.DSH_TEST_EXECUTABLE ?? require('electron')
   const isolatedHome = mkdtempSync(path.join(tmpdir(), 'dsh-startup-test-'))
   const portServer = createServer()
   portServer.listen(0, '127.0.0.1')

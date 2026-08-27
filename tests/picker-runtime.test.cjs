@@ -6,7 +6,7 @@ const { test } = require('node:test')
 
 const root = path.resolve(__dirname, '..')
 const runtime = path.resolve(process.env.DSH_TEST_RUNTIME ?? path.join(root, 'runtime'))
-const executable = process.env.DSH_TEST_EXECUTABLE ?? path.join(root, 'node_modules/electron/dist/electron.exe')
+const executable = process.env.DSH_TEST_EXECUTABLE ?? require('electron')
 const worker = path.join(runtime, 'node_modules/@deepseek-ai/dsh-host-directory-picker-native/lib/worker.cjs')
 const fixture = path.join(__dirname, 'fixtures/picker-native.cjs')
 

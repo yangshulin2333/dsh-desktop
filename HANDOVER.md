@@ -91,6 +91,11 @@ original `D:\AI\DeepSeek` directory using the patch in this repository.
    `4952bebc28`, with recovery source pins in [patches/](patches/README.md).
    No fork has been created and nothing has been pushed.
 
+5. **Dependency audit needs follow-up:** the existing electron-builder 25.1.8
+   toolchain reports 12 npm audit findings (11 high, 1 critical). The staged
+   runtime's production audit reports none in this run. This does not certify
+   the client as secure; assess and upgrade the build toolchain separately.
+
 ---
 
 ## 3. How to build

@@ -5,6 +5,7 @@
 ## 固定输入
 
 - 桌面依赖：根目录 `package-lock.json`，使用 `npm ci`。本次环境为 Node.js 24.15.0、npm 11.12.1。
+- Electron 42.10.1 的包使用按需二进制安装；桌面 `postinstall` 显式运行其安装器，测试通过 `require('electron')` 获取可执行路径，不假定 `npm ci` 自带旧式依赖安装钩子。不要对桌面安装使用 `--ignore-scripts`。
 - harness 基线、两个本地提交、源码树和补丁 SHA-256：[harness-source.json](../patches/harness-source.json)。本地分支为 `desktop/0.1.1`，尚未发布远端 fork。
 - harness 依赖：上游提交自带 `pnpm-lock.yaml`，使用 `pnpm install --frozen-lockfile`；该仓库指定 pnpm 11.7.0。
 - 发布运行时：[runtime-lock/](../runtime-lock/package.json) 中的 manifest、pnpm 配置及锁文件，指定 pnpm 11.0.8。锁文件来自已验收的 0.1.1，SHA-256 为 `d2e06350c731443286c624fd696211030f85e3d25f36c7bb4ea6d484052edcda`。
@@ -76,6 +77,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Packaging failed' }
 - 新运行时使用固定 registry 锁文件安装并覆盖四包：通过，锁文件字节未变。
 - 5 项构建输入检查、3 项 Electron picker 后台回归、1 项空数据目录/无密钥的真实后台启动检查：通过。
 - 桌面干净 checkout 的依赖安装和完整打包验证仍在进行，最终结果见本页后续记录。
+- 依赖审计另行记录：桌面打包工具链 `npm audit` 报 12 项（11 high、1 critical），主要为 electron-builder 25.1.8 的传递依赖；运行时 `pnpm audit --prod` 本次报 0 项。审计结果不等于全面安全保证；本轮不执行 `audit fix --force` 或打包工具大版本升级。
 - 不使用真实密钥、不发送模型请求、不操作桌面。之前的用户 UI 验收针对 `dist/0.1.1/win-unpacked/`，该产物本轮不覆盖。
 - 安装包/便携包入口、签名与 exe 图标、全新机器测试仍是独立发布事项。harness 的全仓 `doc-sync` 三个既有失败见 [0.1.1 验收记录](validation-0.1.1.md)，不在本次构建归档范围内。
 
