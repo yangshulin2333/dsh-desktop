@@ -1,0 +1,944 @@
+diff --git a/packages/client/ui-conversation/src/client/apply.ts b/packages/client/ui-conversation/src/client/apply.ts
+index 7920104d68..c484d76b31 100644
+--- a/packages/client/ui-conversation/src/client/apply.ts
++++ b/packages/client/ui-conversation/src/client/apply.ts
+@@ -28,7 +28,7 @@ import { InputBar } from './skeleton/InputBar.tsx'
+ import { EnterBehaviorRow } from './settings/EnterBehaviorRow.tsx'
+ import type { EnterBehaviorRowInjected } from './settings/EnterBehaviorRow.tsx'
+ import { ChatView } from './chat/ChatView.tsx'
+-import { StatsLine } from './chat/StatsLine.tsx'
++import { createStatsLineDockEntry, type ModelDirectorySource } from './chat/StatsLine.tsx'
+ import { ApprovalPanel } from './skeleton/ApprovalPanel.tsx'
+ import { todoDockEntry } from './skeleton/TodoPanel.tsx'
+ import { queueDockEntry } from './queue/QueueDock.tsx'
+@@ -428,7 +428,17 @@ export function apply(ctx: Context): void {
+   }, ChatView)
+ 
+   // Session stats stick with the composer (composer.dock = stats-line family).
+-  slots.register({ name: 'conversation.composer.dock', id: 'stats', order: 0, locale: NS }, StatsLine)
++  // The cost group inside StatsLine needs the current model id to price
++  // usage; ctx.modelDirectories (ui-model-selection) is read loosely by name
++  // rather than via a formal Context-type merge, so this plugin does not
++  // gain a hard package dependency on that one — a profile without it just
++  // never shows a cost group. Resolved lazily (not once here) because
++  // ui-model-selection loads after ui-conversation in the patch-layer list,
++  // so the service does not exist yet at this plugin's own apply() time.
++  slots.register(
++    { name: 'conversation.composer.dock', id: 'stats', order: 0, locale: NS },
++    createStatsLineDockEntry(() => ctx.get('modelDirectories' as never) as ModelDirectorySource | undefined),
++  )
+ 
+   // Class-plugin mount (packages/AGENTS.md service form): the service
+   // registers itself as `conversation` and lives on its own child fiber.
+diff --git a/packages/client/ui-conversation/src/client/chat/StatsLine.tsx b/packages/client/ui-conversation/src/client/chat/StatsLine.tsx
+index 2d9d14483b..81a425a5cf 100644
+--- a/packages/client/ui-conversation/src/client/chat/StatsLine.tsx
++++ b/packages/client/ui-conversation/src/client/chat/StatsLine.tsx
+@@ -2,7 +2,9 @@
+ // Mounted on 'conversation.composer.dock' so it sticks with the composer in the
+ // active conversation scrollport (see ConversationRoot data-conversation-scroll).
+ 
+-import { Fragment, memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
++import {
++  Fragment, memo, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore,
++} from 'react'
+ import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+ import type { ConversationSnapshot, UseProjection } from '@deepseek-ai/dsh-client-runtime/client'
+ import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
+@@ -12,8 +14,26 @@ import type { ContextPressureProjection, TokenUsageProjection } from '@deepseek-
+ import type { ComposerBarProps } from '../contract/slots.ts'
+ import { formatTokensPerSecond } from './message-chrome.ts'
+ import { assistantStepReading } from './turn-metrics.ts'
++import { estimateSessionCostCNY, formatCNY } from './pricing.ts'
+ import css from './StatsLine.module.css'
+ 
++/**
++ * The slice of `ctx.modelDirectories` (owned by the ui-model-selection
++ * plugin) that a session cost estimate needs. Read loosely through
++ * `ctx.get(...)` rather than a formal Context-type merge / package
++ * dependency — this line degrades to no cost group, never an error, when
++ * that plugin is absent from a profile, so it deliberately does not import
++ * that package's types.
++ */
++export interface ModelDirectorySource {
++  directoryFor(sessionId: string): {
++    store: {
++      subscribe(onChange: () => void): () => void
++      getSnapshot(): { current: { provider: string; model: string } | null }
++    }
++  }
++}
++
+ interface WindowStats {
+   turns: number
+   steps: number
+@@ -206,11 +226,32 @@ export interface StatsLineProps {
+   useProjection: UseProjection
+   /** The owning dock's locale seat. */
+   t: ComposerBarProps['t']
++  /**
++   * Resolves the current-model source for the cost estimate on demand;
++   * absent, or resolving to undefined, omits the cost group. A getter
++   * (rather than an already-resolved value) because `ctx.modelDirectories`
++   * is registered by a plugin that loads after this one — calling it once at
++   * this plugin's own apply() time would always see it missing.
++   */
++  getModelDirectories?: (() => ModelDirectorySource | undefined) | undefined
+ }
+ 
+-export const StatsLine = memo(function StatsLine({ useSession, useProjection, t }: StatsLineProps) {
++const NO_SUBSCRIPTION = (): (() => void) => () => {}
++
++export const StatsLine = memo(function StatsLine(
++  { useSession, useProjection, t, getModelDirectories }: StatsLineProps,
++) {
+   const settledNodes = useSession(s => s.chat.legacy.nodes)
++  const sessionId = useSession(s => s.sessionId)
+   const usage = useProjection('tokenUsage')
++  const directory = useMemo(
++    () => getModelDirectories?.()?.directoryFor(sessionId),
++    [getModelDirectories, sessionId],
++  )
++  const currentModelId = useSyncExternalStore(
++    directory !== undefined ? directory.store.subscribe : NO_SUBSCRIPTION,
++    () => directory?.store.getSnapshot().current?.model,
++  )
+   // Every figure rides the durable sessionStats projection, so paging and
+   // compaction cannot change any of them; an assembly without the unit falls
+   // back to the window-scoped fold wholesale (same field names), paid only
+@@ -250,6 +291,8 @@ export const StatsLine = memo(function StatsLine({ useSession, useProjection, t
+       input: formatTokens(billedInputTokens(usage)),
+       output: formatTokens(usage.outputTokens),
+     }))
++    const cost = estimateSessionCostCNY(usage, currentModelId)
++    if (cost !== null) groups.push(t('stats.cost', { amount: formatCNY(cost) }))
+   }
+   const line = groups.join(' | ')
+   // The row elides with ellipsis when overlong; a delayed hover tooltip carries
+@@ -280,3 +323,20 @@ export const StatsLine = memo(function StatsLine({ useSession, useProjection, t
+     </Tooltip>
+   )
+ })
++
++/**
++ * Bind a `modelDirectories` getter once at slot registration, so the
++ * dock-slot host — which only ever supplies the fixed
++ * `{ useSession, useProjection, t }` trio — can mount `StatsLine` unchanged.
++ * @param getModelDirectories - resolves the plugin-scoped source on demand
++ * (see {@link StatsLineProps.getModelDirectories} for why this is a getter,
++ * not an already-resolved value).
++ * @returns a component matching the dock slot's own prop contract.
++ */
++export function createStatsLineDockEntry(
++  getModelDirectories: () => ModelDirectorySource | undefined,
++): (props: Omit<StatsLineProps, 'getModelDirectories'>) => JSX.Element | null {
++  return function StatsLineDockEntry(props) {
++    return <StatsLine {...props} getModelDirectories={getModelDirectories} />
++  }
++}
+diff --git a/packages/client/ui-conversation/src/client/locales.ts b/packages/client/ui-conversation/src/client/locales.ts
+index f4e7a7c59a..048af672ab 100644
+--- a/packages/client/ui-conversation/src/client/locales.ts
++++ b/packages/client/ui-conversation/src/client/locales.ts
+@@ -62,6 +62,7 @@ export const zh = {
+   'stats.tokensPerSecond': '{throughput} tok/s',
+   'stats.cacheHit': '缓存命中 {percent}%',
+   'stats.tokens': '输入 {input} tok · 输出 {output} tok',
++  'stats.cost': '约 ¥{amount}',
+   'settings.enter.title': '繁忙时 Enter 键行为',
+   'settings.enter.description': '仅在智能体运行时生效；Cmd/Ctrl+Enter 使用另一行为',
+   'settings.enter.queue': '排队发送',
+@@ -239,6 +240,7 @@ export const en = {
+   'stats.tokensPerSecond': '{throughput} tok/s',
+   'stats.cacheHit': 'Cache hit {percent}%',
+   'stats.tokens': 'Input {input} tok · Output {output} tok',
++  'stats.cost': '~¥{amount}',
+   'settings.enter.title': 'Enter behavior while busy',
+   'settings.enter.description': 'Busy only; Cmd/Ctrl+Enter uses the other behavior',
+   'settings.enter.queue': 'Queue',
+diff --git a/packages/client/ui-settings-models/src/client/ModelsSection.module.css b/packages/client/ui-settings-models/src/client/ModelsSection.module.css
+index 6b8c2047a4..8017e88331 100644
+--- a/packages/client/ui-settings-models/src/client/ModelsSection.module.css
++++ b/packages/client/ui-settings-models/src/client/ModelsSection.module.css
+@@ -603,6 +603,13 @@ select.input {
+   color: var(--dsw-alias-state-error-primary);
+ }
+ 
++.hint {
++  margin: 0;
++  font-size: 12px;
++  line-height: 18px;
++  color: var(--dsw-alias-label-tertiary);
++}
++
+ .deleteDialog {
+   width: min(480px, 100%);
+ }
+diff --git a/packages/client/ui-settings-models/src/client/ProviderEditor.tsx b/packages/client/ui-settings-models/src/client/ProviderEditor.tsx
+index 4cc6091b69..df82c3b731 100644
+--- a/packages/client/ui-settings-models/src/client/ProviderEditor.tsx
++++ b/packages/client/ui-settings-models/src/client/ProviderEditor.tsx
+@@ -23,7 +23,9 @@
+ 
+ import { useEffect, useMemo, useState } from 'react'
+ import type { ReactNode } from 'react'
+-import type { CredentialView, IApiClient, SettingsNamespaceView, SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
++import type {
++  CredentialView, IApiClient, SettingsNamespaceView, SettingsPathOpView,
++} from '@deepseek-ai/dsh-api-remotes/client'
+ import {
+   DeepSeekModelsEditor, modelDrafts, validateDeepSeekModels,
+ } from './DeepSeekModelsEditor.tsx'
+@@ -125,6 +127,64 @@ export function pathOps(
+   return ops
+ }
+ 
++/**
++ * The DeepSeek account-balance route served by the llm-deepseek plugin
++ * (see that package's balance-route module). Read with a plain same-origin
++ * fetch rather than through the RPC client: the API key stays on the host and
++ * the whole payload is a handful of decimal strings, so the readout needs
++ * neither a generated Remote namespace nor a wire schema of its own.
++ */
++const BALANCE_ENDPOINT = '/deepseek/balance'
++
++/** One currency bucket as the route serves it. */
++interface BalanceEntry {
++  currency: string
++  totalBalance: string
++}
++
++/** The balance readout's own display state, independent of the editor's. */
++type BalanceState =
++  | { status: 'loading' }
++  | { status: 'ready'; balances: readonly BalanceEntry[] }
++  | { status: 'failed'; reason: string }
++
++/**
++ * Read the balance route, mapping every outcome onto one display state.
++ * @returns the state to render; never rejects.
++ */
++async function readBalance(): Promise<BalanceState> {
++  let response: Response
++  try {
++    response = await fetch(BALANCE_ENDPOINT, { headers: { accept: 'application/json' } })
++  } catch {
++    return { status: 'failed', reason: 'the local harness did not answer' }
++  }
++  let body: unknown
++  try {
++    body = await response.json()
++  } catch {
++    return { status: 'failed', reason: `HTTP ${String(response.status)}` }
++  }
++  if (!response.ok) {
++    const message = typeof body === 'object' && body !== null
++      ? (body as { error?: unknown }).error
++      : undefined
++    return { status: 'failed', reason: typeof message === 'string' ? message : `HTTP ${String(response.status)}` }
++  }
++  const balances = typeof body === 'object' && body !== null
++    ? (body as { balances?: unknown }).balances
++    : undefined
++  if (!Array.isArray(balances)) return { status: 'failed', reason: 'unexpected response shape' }
++  const rows: BalanceEntry[] = []
++  for (const entry of balances as unknown[]) {
++    if (entry === null || typeof entry !== 'object') continue
++    const { currency, totalBalance } = entry as { currency?: unknown; totalBalance?: unknown }
++    if (typeof currency !== 'string' || typeof totalBalance !== 'string') continue
++    rows.push({ currency, totalBalance })
++  }
++  return { status: 'ready', balances: rows }
++}
++
+ /** The editor layout the owning namespace selects. */
+ function layoutOf(ns: string): EditorLayout {
+   if (ns === 'llm-deepseek') return 'deepseek'
+@@ -156,6 +216,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
+   const [draft, setDraft] = useState<Record<string, unknown>>(() => draftAt(schema, namespace, settingsPath))
+   const [keyDraft, setKeyDraft] = useState('')
+   const [keyState, setKeyState] = useState<CredentialView | undefined>(undefined)
++  const [balance, setBalance] = useState<BalanceState | undefined>(undefined)
+   const [busy, setBusy] = useState(false)
+   const [failure, setFailure] = useState<string | undefined>(undefined)
+   // A settings success advances both retry baselines immediately. Keeping the
+@@ -197,6 +258,26 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
+     return () => { stale = true }
+   }, [api.credentials, keyRef])
+ 
++  // Balance is a read-only readout beside the key field, on the same terms as
++  // the key hint above: an unconfigured key, a profile without the route, or
++  // any failure simply renders no balance rather than blocking the editor.
++  // Gated on a stored key so the card never asks a route that can only answer
++  // "no credential" — a key typed but not yet applied is not one the host can
++  // bill against.
++  const balanceReadable = layout === 'deepseek' && keyState?.configured === true
++  useEffect(() => {
++    if (!balanceReadable) {
++      setBalance(undefined)
++      return
++    }
++    let stale = false
++    setBalance({ status: 'loading' })
++    void readBalance().then((next) => {
++      if (!stale) setBalance(next)
++    })
++    return () => { stale = true }
++  }, [balanceReadable])
++
+   const stringAt = (source: unknown, key: string): string | undefined => {
+     const value = schema.getPath(source, [key])
+     return typeof value === 'string' && value.trim().length > 0 ? value : undefined
+@@ -386,6 +467,19 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
+             onChange={(event) => { setKeyDraft(event.target.value) }}
+           />
+           {shownKeyFailure === undefined ? null : <p className={styles['error']}>{t(shownKeyFailure)}</p>}
++          {balance === undefined
++            ? null
++            : balance.status === 'loading'
++              ? <p className={styles['hint']}>{t('balanceLoading')}</p>
++              : balance.status === 'failed'
++                ? <p className={styles['hint']}>{`${t('balanceUnavailable')}（${balance.reason}）`}</p>
++                : (
++                  <p className={styles['hint']}>
++                    {`${t('balance')} ${balance.balances
++                      .map(entry => `${entry.currency} ${entry.totalBalance}`)
++                      .join(' · ')}`}
++                  </p>
++                )}
+         </div>
+         {props.credentialOnly === true ? null : <details className={styles['customized']}>
+           <summary className={styles['customizedSummary']}>{t('customized')}</summary>
+diff --git a/packages/client/ui-settings-models/src/client/locales.ts b/packages/client/ui-settings-models/src/client/locales.ts
+index 856ef64c7b..d9768f9569 100644
+--- a/packages/client/ui-settings-models/src/client/locales.ts
++++ b/packages/client/ui-settings-models/src/client/locales.ts
+@@ -34,6 +34,9 @@ export const en = {
+   keyPlaceholderNative: 'Enter an API key, or leave blank to use environment authentication',
+   keyStored: 'Configured — enter a new value to replace',
+   keyEnvLocked: 'Provided by the launch environment (read-only)',
++  balance: 'Account balance:',
++  balanceLoading: 'Reading account balance…',
++  balanceUnavailable: 'Account balance unavailable',
+   customized: 'Customized settings',
+   baseUrl: 'Base URL',
+   baseUrlDefault: 'Provider default',
+@@ -136,6 +139,9 @@ export const zh: { [Key in keyof typeof en]: string } = {
+   keyPlaceholderNative: '输入 API 密钥，或留空使用环境认证',
+   keyStored: '已配置——输入新值可替换',
+   keyEnvLocked: '由启动环境提供（只读）',
++  balance: '账户余额：',
++  balanceLoading: '正在读取账户余额…',
++  balanceUnavailable: '账户余额暂不可用',
+   customized: '自定义设置',
+   baseUrl: 'API 地址',
+   baseUrlDefault: '提供方默认',
+diff --git a/packages/host/directory-picker-native/README.i18n.yaml b/packages/host/directory-picker-native/README.i18n.yaml
+index 38b819b68c..cc1bb59de4 100644
+--- a/packages/host/directory-picker-native/README.i18n.yaml
++++ b/packages/host/directory-picker-native/README.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/host/directory-picker-native/README.md
+-README.md: 4dd0c79d080fe097d063cfd2200e30aafc2d2d42
+-README.zh.md: 36cfe85d22a5c5e598bbda6ffbf8823b44479b8d
++README.md: 6144aaa38c23fd2ba8fa2fa913d0e69587464e81
++README.zh.md: 3a7c8eb63eb361b04adc54380489ff926ccc6248
+diff --git a/packages/host/directory-picker-native/README.md b/packages/host/directory-picker-native/README.md
+index 4dd0c79d08..6144aaa38c 100644
+--- a/packages/host/directory-picker-native/README.md
++++ b/packages/host/directory-picker-native/README.md
+@@ -16,5 +16,6 @@ None; this package neither assembles nor sends a provider request.
+ 
+ ## Known Limitations and Deferred Work
+ 
++- **Electron memory compatibility** — selected UTF-16 paths are copied with `koffi.decode(address, 'char16', -1)`, without external ArrayBuffers. The worker keeps IPC open until its terminal result has flushed; unexpected exits include the exit code and signal.
+ - **Linux requires desktop tooling** — with neither Zenity nor KDialog installed, `pick` rejects with an actionable error; it does not fall back to a typed-path prompt (the browse backend is that fallback at the composition level).
+ - **Windows has no mechanism fallback** — the child-process picker through packaged koffi is the only native tier, so a COM refusal or dialog crash surfaces the failure. The browse backend remains the fallback at the composition level.
+diff --git a/packages/host/directory-picker-native/README.zh.md b/packages/host/directory-picker-native/README.zh.md
+index 36cfe85d22..3a7c8eb63e 100644
+--- a/packages/host/directory-picker-native/README.zh.md
++++ b/packages/host/directory-picker-native/README.zh.md
+@@ -16,5 +16,6 @@
+ 
+ ## 已知限制与延期工作
+ 
++- **Electron 内存兼容性**——所选 UTF-16 路径通过 `koffi.decode(address, 'char16', -1)` 复制，不使用外部 ArrayBuffer。worker 保持 IPC 通道开启，直到最终结果发送完成；意外退出时包含退出码和信号。
+ - **Linux 依赖桌面工具**——Zenity 与 KDialog 均未安装时，`pick` 以包含解决建议的错误拒绝；它不会回退为手输路径提示（组合层面的回退是 browse 后端）。
+ - **Windows 没有机制级回退**——通过打包依赖 koffi 运行的子进程选择器是唯一原生层级，因此 COM 拒绝或对话框崩溃会直接上报失败。组合层面的回退仍是 browse 后端。
+diff --git a/packages/host/directory-picker-native/src/win32-dialog-bindings.ts b/packages/host/directory-picker-native/src/win32-dialog-bindings.ts
+index 654bbc5a74..05d5191d7e 100644
+--- a/packages/host/directory-picker-native/src/win32-dialog-bindings.ts
++++ b/packages/host/directory-picker-native/src/win32-dialog-bindings.ts
+@@ -21,24 +21,19 @@ interface Koffi {
+   proto(declaration: string): unknown
+   pointer(type: unknown): unknown
+   call(pointer: unknown, proto: unknown, ...args: unknown[]): unknown
+-  decode(value: unknown, offsetOrType: unknown, type?: unknown): unknown
++  decode(value: unknown, offsetOrType: unknown, typeOrLength?: unknown): unknown
+   register(fn: (...args: unknown[]) => unknown, type: unknown): unknown
+   unregister(callback: unknown): void
+   sizeof(type: string): number
+-  view(ref: unknown, len: number): ArrayBuffer
+ }
+ 
+ /**
+- * Read a NUL-terminated UTF-16 string at a native address. koffi's
+- * `_Out_ void **` out-params surface a raw address, and
+- * `koffi.decode(addr, 'str16')` would dereference it as a pointer — crash
+- * on real Windows — so view the memory directly instead.
++ * Copy a NUL-terminated UTF-16 string from a raw COM address. `char16`
++ * with length -1 decodes the characters directly; `str16` dereferences
++ * another pointer, and `view` requires external buffers Electron forbids.
+  */
+ function readUtf16(koffi: Koffi, address: unknown): string {
+-  const bytes = Buffer.from(koffi.view(address, 32768))
+-  let end = 0
+-  while (end + 1 < bytes.length && bytes[end] !== 0) end += 2
+-  return bytes.toString('utf16le', 0, end)
++  return koffi.decode(address, 'char16', -1) as string
+ }
+ 
+ const COINIT_APARTMENTTHREADED = 0x2
+@@ -156,9 +151,11 @@ export async function loadWin32DialogBindings(): Promise<Win32DialogBindings> {
+             const nameOut: unknown[] = [null]
+             const gotName = method(item, SLOT_GET_DISPLAY_NAME, protoGetDisplayName)(SIGDN_FILESYSPATH, nameOut)
+             if (gotName < 0) return { hr: gotName }
+-            const path = readUtf16(koffi, nameOut[0])
+-            coTaskMemFree(nameOut[0])
+-            return { hr: gotName, path }
++            try {
++              return { hr: gotName, path: readUtf16(koffi, nameOut[0]) }
++            } finally {
++              coTaskMemFree(nameOut[0])
++            }
+           } finally {
+             method(item, SLOT_RELEASE, protoRelease)()
+           }
+diff --git a/packages/host/directory-picker-native/src/win32-dialog-worker.ts b/packages/host/directory-picker-native/src/win32-dialog-worker.ts
+index 0b422b3ca7..7bda994aa8 100644
+--- a/packages/host/directory-picker-native/src/win32-dialog-worker.ts
++++ b/packages/host/directory-picker-native/src/win32-dialog-worker.ts
+@@ -28,9 +28,10 @@ if (process.send === undefined) throw new Error('win32-dialog-worker must run as
+ const send = process.send.bind(process)
+ 
+ const post = (message: Win32DialogWorkerMessage): void => {
+-  // Flush before closing the channel; the process exits when the loop drains.
+-  /* v8 ignore next 3 -- disconnect needs a live IPC channel the unit lane must not sever (built-worker.e2e.ts owns the real close path). */
+-  send(message, () => { if (process.connected) process.disconnect() })
++  // Keep IPC live after the showing notice; close only after the result flushes.
++  send(message, () => {
++    if (message.kind !== 'showing' && process.connected) process.disconnect()
++  })
+ }
+ 
+ // A settled driver (or a dead parent) must not orphan a dialog still on screen.
+diff --git a/packages/host/directory-picker-native/src/win32-dialog.ts b/packages/host/directory-picker-native/src/win32-dialog.ts
+index cb8a492faa..45dddbd388 100644
+--- a/packages/host/directory-picker-native/src/win32-dialog.ts
++++ b/packages/host/directory-picker-native/src/win32-dialog.ts
+@@ -18,7 +18,7 @@ export interface Win32DialogWorkerLike {
+    */
+   on(event: 'message', listener: (message: Win32DialogWorkerMessage) => void): unknown
+   on(event: 'error', listener: (error: Error) => void): unknown
+-  on(event: 'exit', listener: (code: number) => void): unknown
++  on(event: 'exit', listener: (code: number | null, signal: NodeJS.Signals | null) => void): unknown
+   /**
+    * Force-stop the child; the abort path's last resort when `WM_CLOSE`
+    * never lands (e.g. the dialog window was never created).
+@@ -150,9 +150,9 @@ export async function pickWin32Directory(
+         reject(error)
+       })
+     })
+-    worker.on('exit', () => {
++    worker.on('exit', (code, exitSignal) => {
+       settle(() => {
+-        reject(new Error('win32 folder dialog worker exited before reporting a result'))
++        reject(new Error(`win32 folder dialog worker exited before reporting a result (code ${String(code)}, signal ${exitSignal ?? 'none'})`))
+       })
+     })
+   })
+diff --git a/packages/host/directory-picker-native/tests/win32-dialog-bindings.spec.ts b/packages/host/directory-picker-native/tests/win32-dialog-bindings.spec.ts
+index b8ff4c3f1a..6ed5a140e7 100644
+--- a/packages/host/directory-picker-native/tests/win32-dialog-bindings.spec.ts
++++ b/packages/host/directory-picker-native/tests/win32-dialog-bindings.spec.ts
+@@ -127,15 +127,12 @@ function installFakeKoffi(world: ComWorld): void {
+       proto: (declaration: string) => ({ declaration }),
+       pointer: (type: unknown) => type,
+       sizeof: (type: string) => { void type; return FAKE_POINTER_SIZE },
+-      view: (value: unknown, len: number): ArrayBuffer => {
+-        const bytes = Buffer.alloc(len)
+-        bytes.write((value as FakePtr).text as string, 'utf16le')
+-        return bytes.buffer
+-      },
++      // Electron cannot expose unmanaged memory as an external ArrayBuffer.
++      view: (): never => { throw new Error('This runtime does not support external buffers') },
+       register: (fn: (hwnd: unknown, lparam: unknown) => number) => { world.registered += 1; return { fn } },
+       unregister: () => { world.unregistered += 1 },
+-      decode: (value: unknown, offsetOrType: unknown): unknown => {
+-        if (offsetOrType === 'str16') return (value as FakePtr).text
++      decode: (value: unknown, offsetOrType: unknown, typeOrLength?: unknown): unknown => {
++        if (offsetOrType === 'char16' && typeOrLength === -1) return (value as FakePtr).text
+         if (typeof offsetOrType === 'number') {
+           // Vtable slot read: offsets must be multiples of the fake width.
+           if (offsetOrType % FAKE_POINTER_SIZE !== 0) throw new Error(`vtable offset ${offsetOrType} is not pointer-aligned`)
+@@ -267,19 +264,19 @@ describe('closeThreadWindows over the fake COM world', () => {
+ describe('the worker entry over a mocked process boundary', () => {
+   const originalSend = process.send?.bind(process)
+   const originalTitle = process.env.DSH_DIALOG_TITLE
++  const originalDisconnectListeners = process.listeners('disconnect')
+ 
+-  const installBoundary = (): { posted: { kind: string; message?: string }[] } => {
++  const installBoundary = (): { posted: { kind: string; message?: string }[]; flush: (index: number) => void } => {
+     const posted: { kind: string; message?: string }[] = []
++    const callbacks: (() => void)[] = []
+     process.env.DSH_DIALOG_TITLE = 'Pick'
+-    // Never invoke the post callback: it runs the worker's disconnect(), and
+-    // this process is IPC-connected under the forks pool — severing vitest's
+-    // own channel would kill the test worker. The real close lifecycle
+-    // belongs to built-worker.e2e.ts.
+-    ;(process as { send?: unknown }).send = (message: { kind: string }) => {
++    // Flush is driven explicitly with disconnect mocked, keeping Vitest's IPC live.
++    ;(process as { send?: unknown }).send = (message: { kind: string }, callback: () => void) => {
+       posted.push(message)
++      callbacks.push(callback)
+       return true
+     }
+-    return { posted }
++    return { posted, flush: (index) => { callbacks[index]?.() } }
+   }
+ 
+   afterEach(() => {
+@@ -287,12 +284,17 @@ describe('the worker entry over a mocked process boundary', () => {
+     if (originalSend !== undefined) (process as { send?: unknown }).send = originalSend
+     if (originalTitle === undefined) delete process.env.DSH_DIALOG_TITLE
+     else process.env.DSH_DIALOG_TITLE = originalTitle
++    for (const listener of process.listeners('disconnect')) {
++      if (!originalDisconnectListeners.includes(listener)) process.removeListener('disconnect', listener)
++    }
++    vi.restoreAllMocks()
+     vi.doUnmock('../src/win32-dialog-bindings.ts')
+     vi.resetModules()
+   })
+ 
+   it('posts showing then done for a completed conversation', async () => {
+-    const { posted } = installBoundary()
++    const { posted, flush } = installBoundary()
++    const disconnect = vi.spyOn(process, 'disconnect').mockImplementation(() => undefined)
+     vi.doMock('../src/win32-dialog-bindings.ts', () => ({
+       loadWin32DialogBindings: async () => ({
+         setThreadDpiAwareness: () => undefined,
+@@ -313,6 +315,10 @@ describe('the worker entry over a mocked process boundary', () => {
+       { kind: 'showing', threadId: 11 },
+       { kind: 'done', path: 'C:\\from-worker' },
+     ])
++    flush(0)
++    expect(disconnect).not.toHaveBeenCalled()
++    flush(1)
++    expect(disconnect).toHaveBeenCalledOnce()
+   })
+ 
+   it('posts the failure message when the native surface cannot load', async () => {
+diff --git a/packages/host/directory-picker-native/tests/win32-dialog.spec.ts b/packages/host/directory-picker-native/tests/win32-dialog.spec.ts
+index 8e7d6951b8..5dc41bb0a5 100644
+--- a/packages/host/directory-picker-native/tests/win32-dialog.spec.ts
++++ b/packages/host/directory-picker-native/tests/win32-dialog.spec.ts
+@@ -69,8 +69,8 @@ describe('pickWin32Directory', () => {
+ 
+     const silent = harness()
+     const exiting = pickWin32Directory(live(), silent.internals)
+-    silent.worker.emit('exit', 0)
+-    await expect(exiting).rejects.toThrow('exited before reporting a result')
++    silent.worker.emit('exit', 134, null)
++    await expect(exiting).rejects.toThrow('exited before reporting a result (code 134, signal none)')
+   })
+ 
+   it('settles once: a late exit after the result is inert', async () => {
+diff --git a/packages/llm/llm-deepseek/src/index.ts b/packages/llm/llm-deepseek/src/index.ts
+index 3af0236d29..ba819ccbca 100644
+--- a/packages/llm/llm-deepseek/src/index.ts
++++ b/packages/llm/llm-deepseek/src/index.ts
+@@ -40,6 +40,7 @@ import {
+   DeepSeekAdapter,
+ } from './adapter.ts'
+ import type { DeepSeekCatalogModel, DeepSeekConnectionOptions } from './adapter.ts'
++import { registerBalanceRoute } from './balance-route.ts'
+ 
+ export {
+   DEFAULT_CONTEXT_WINDOW,
+@@ -71,6 +72,10 @@ export { DeepSeekUploadIndex, deepSeekFileScope } from './upload-index.ts'
+ export type { DeepSeekUploadRecord } from './upload-index.ts'
+ export type { RequestDefaults } from './serialize.ts'
+ export type * from './types.ts'
++export { BALANCE_ROUTE_PATH, parseBalance, registerBalanceRoute } from './balance-route.ts'
++export type {
++  BalanceRouteDeps, DeepSeekBalanceBody, DeepSeekBalanceEntry,
++} from './balance-route.ts'
+ 
+ export const name = 'llm-deepseek'
+ export const inject = ['llm']
+@@ -464,4 +469,13 @@ export function apply(ctx: Context, config: Config): void {
+     },
+     onChange: ensureRegistrationFacts,
+   })
++
++  // The account-balance readout for the web Models page. It reads the same
++  // resolved connection facts and credential as the chat adapter above,
++  // through the same two closures — never a second, independently drifting
++  // resolution path. A profile with no web server registers nothing.
++  registerBalanceRoute(ctx, {
++    getBaseURL: () => options().baseURL,
++    getApiKey: () => resolveApiKey(options()),
++  })
+ }
+diff --git a/.agents/notes/implemented/bug-fix/2026-08-27-win32-picker-electron-memory.i18n.yaml b/.agents/notes/implemented/bug-fix/2026-08-27-win32-picker-electron-memory.i18n.yaml
+new file mode 100644
+index 0000000000..0834920476
+--- /dev/null
++++ b/.agents/notes/implemented/bug-fix/2026-08-27-win32-picker-electron-memory.i18n.yaml
+@@ -0,0 +1,6 @@
++# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
++# side as of the last confirmed-consistent state. Both languages carry equal authority;
++# after editing either side, bring the other along and re-record with:
++#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-27-win32-picker-electron-memory.md
++2026-08-27-win32-picker-electron-memory.md: d81277480e8e57104df8349ae37aad6767fa7330
++2026-08-27-win32-picker-electron-memory.zh.md: a15ff6bd62eef79f96410d0c411013e6afae3c38
+diff --git a/.agents/notes/implemented/bug-fix/2026-08-27-win32-picker-electron-memory.md b/.agents/notes/implemented/bug-fix/2026-08-27-win32-picker-electron-memory.md
+new file mode 100644
+index 0000000000..d81277480e
+--- /dev/null
++++ b/.agents/notes/implemented/bug-fix/2026-08-27-win32-picker-electron-memory.md
+@@ -0,0 +1,25 @@
++# Agent Note: Win32 picker memory and IPC lifetime
++
++Status: implemented
++
++English | [中文](2026-08-27-win32-picker-electron-memory.zh.md)
++
++## Problem
++
++Selecting a folder under Electron 42.10.1 exits the dialog worker with code 134 at `readUtf16`. Koffi's `view` exposes native memory as an external ArrayBuffer, which Electron forbids. Opening or cancelling a dialog does not exercise that read. The worker also disconnects IPC after its `showing` notice, before the terminal message is guaranteed to flush.
++
++## Decision
++
++The [bindings](../../../../packages/host/directory-picker-native/src/win32-dialog-bindings.ts) copy NUL-terminated UTF-16 characters through `koffi.decode(address, 'char16', -1)` and free the COM string in `finally`. The worker disconnects only after `done` or `error` has flushed. Unexpected child exits report the code and signal.
++
++## Alternatives considered
++
++**External memory views** cannot support Electron's memory cage. Checking only the low byte of each UTF-16 code unit also truncates valid directory names.
++
++**Decoding as `str16`** treats the raw character address as a pointer slot and adds an invalid dereference.
++
++**Changing the desktop framework** is unnecessary for a local path-decoding defect and would add backend packaging work.
++
++## Consequences
++
++The copy is proportional to one path string and preserves the existing native dialog and IPC protocol. Unit tests reject external buffers and exercise send-completion ordering. The desktop consumer owns an Electron artifact test with real Koffi decoding and mocked modal COM calls; real user selection remains a separate acceptance check.
+diff --git a/.agents/notes/implemented/bug-fix/2026-08-27-win32-picker-electron-memory.zh.md b/.agents/notes/implemented/bug-fix/2026-08-27-win32-picker-electron-memory.zh.md
+new file mode 100644
+index 0000000000..a15ff6bd62
+--- /dev/null
++++ b/.agents/notes/implemented/bug-fix/2026-08-27-win32-picker-electron-memory.zh.md
+@@ -0,0 +1,25 @@
++# Agent Note: Win32 选择器的内存与 IPC 生命周期
++
++Status: implemented
++
++[English](2026-08-27-win32-picker-electron-memory.md) | 中文
++
++## 问题
++
++在 Electron 42.10.1 中选择文件夹时，对话框 worker 在 `readUtf16` 处以退出码 134 终止。Koffi 的 `view` 将原生内存暴露为外部 ArrayBuffer，而 Electron 禁止这种用法。仅打开或取消对话框不会执行该读取。worker 还会在 `showing` 通知后断开 IPC，无法保证最终消息已发送完成。
++
++## 决策
++
++[绑定实现](../../../../packages/host/directory-picker-native/src/win32-dialog-bindings.ts) 通过 `koffi.decode(address, 'char16', -1)` 复制以 NUL 结尾的 UTF-16 字符，并在 `finally` 中释放 COM 字符串。worker 仅在 `done` 或 `error` 发送完成后断开连接。子进程意外退出时报告退出码和信号。
++
++## 考虑过的替代方案
++
++**外部内存视图**无法支持 Electron 的内存隔离机制。只检查每个 UTF-16 码元的低字节还会截断合法目录名。
++
++**按 `str16` 解码**会将原始字符地址当作指针存储位置，增加一次无效解引用。
++
++**更换桌面框架**并非修复局部路径解码缺陷所必需，还会增加后端打包工作。
++
++## 影响
++
++复制开销与单个路径字符串的长度成正比，保留现有原生对话框和 IPC 协议。单元测试拒绝外部缓冲区并验证发送完成的顺序。桌面消费方维护使用真实 Koffi 解码、以 mock 替代模态 COM 调用的 Electron 产物测试；用户真实选择目录仍是独立验收项。
+diff --git a/packages/client/ui-conversation/src/client/chat/pricing.ts b/packages/client/ui-conversation/src/client/chat/pricing.ts
+new file mode 100644
+index 0000000000..401091a175
+--- /dev/null
++++ b/packages/client/ui-conversation/src/client/chat/pricing.ts
+@@ -0,0 +1,88 @@
++/**
++ * Static CNY price table for the DeepSeek official routes this harness ships
++ * by default, used to show an approximate session spend on {@link StatsLine}.
++ * DeepSeek's own docs (api-docs.deepseek.com/quick_start/pricing) publish
++ * off-peak USD rates only; this file converts them at a fixed approximate
++ * USD->CNY rate, so the figure is an estimate, not an invoice line. Peak-hour
++ * (2x) pricing is not modeled: the session projection this reads carries no
++ * per-request timestamp to key off.
++ */
++
++const USD_TO_CNY = 7.15
++
++interface ModelPrice {
++  /** CNY per million uncached input tokens. */
++  input: number
++  /** CNY per million cache-hit input tokens. */
++  cacheHit: number
++  /** CNY per million output tokens. */
++  output: number
++}
++
++function fromUsdPerMillion(amount: number): number {
++  return amount * USD_TO_CNY
++}
++
++const PRICE_TABLE_CNY: Record<string, ModelPrice> = {
++  'deepseek-v4-flash': {
++    input: fromUsdPerMillion(0.22),
++    cacheHit: fromUsdPerMillion(0.007),
++    output: fromUsdPerMillion(0.66),
++  },
++  'deepseek-v4-pro': {
++    input: fromUsdPerMillion(0.66),
++    cacheHit: fromUsdPerMillion(0.022),
++    output: fromUsdPerMillion(1.98),
++  },
++  // No separate published rate for the vision-preview route; it is the same
++  // base model family, so the plain Flash rate is a closer estimate than
++  // showing nothing.
++  'deepseek-v4-flash-vision-exp': {
++    input: fromUsdPerMillion(0.22),
++    cacheHit: fromUsdPerMillion(0.007),
++    output: fromUsdPerMillion(0.66),
++  },
++}
++
++/** The subset of {@link TokenUsageProjection} needed for a cost estimate. */
++export interface BillableTokenUsage {
++  uncachedInputTokens: number
++  cacheReadTokens: number
++  cacheWriteTokens: number
++  outputTokens: number
++}
++
++/**
++ * Estimate session spend in CNY for one model's accumulated usage.
++ *
++ * Cache-write tokens are priced at the plain input rate: DeepSeek's own usage
++ * accounting only ever reports a hit/miss split, so a non-zero write bucket
++ * (populated for other providers this harness can route to) has no dedicated
++ * DeepSeek rate to charge instead.
++ * @param usage - billed token buckets, e.g. the session's `tokenUsage` projection.
++ * @param modelId - the currently selected model id.
++ * @returns estimated CNY spend, or null when the model has no price entry
++ * (an unpriced or non-DeepSeek route).
++ */
++export function estimateSessionCostCNY(
++  usage: BillableTokenUsage,
++  modelId: string | undefined,
++): number | null {
++  if (modelId === undefined) return null
++  const price = PRICE_TABLE_CNY[modelId]
++  if (price === undefined) return null
++  return (usage.uncachedInputTokens + usage.cacheWriteTokens) / 1_000_000 * price.input
++    + usage.cacheReadTokens / 1_000_000 * price.cacheHit
++    + usage.outputTokens / 1_000_000 * price.output
++}
++
++/**
++ * Format a CNY amount for the compact stats line.
++ * @param amount - non-negative CNY amount.
++ * @returns two-decimal display string, floored at "<0.01" so a cheap turn
++ * does not read as free.
++ */
++export function formatCNY(amount: number): string {
++  if (amount > 0 && amount < 0.01) return '<0.01'
++  return amount.toFixed(2)
++}
+diff --git a/packages/llm/llm-deepseek/src/balance-route.ts b/packages/llm/llm-deepseek/src/balance-route.ts
+new file mode 100644
+index 0000000000..5e731796de
+--- /dev/null
++++ b/packages/llm/llm-deepseek/src/balance-route.ts
+@@ -0,0 +1,176 @@
++/**
++ * `GET /deepseek/balance` — a read-only HTTP route exposing DeepSeek's
++ * `/user/balance` account endpoint to the Models settings page.
++ *
++ * Deliberately a plain webserver route rather than a Typert `@Remote` service:
++ * a Remote namespace would pull this package into the client type graph and
++ * the generated zod validators into the browser bundle, for one read whose
++ * whole payload is four decimal strings. The route keeps the API key on the
++ * host — the browser only ever sees the parsed amounts — and adds no
++ * cross-package build edges. Registered only when `ctx.webServer` exists, so
++ * the headless and TUI profiles are unaffected.
++ * @module @deepseek-ai/dsh-llm-deepseek/balance-route
++ */
++
++import type { IncomingMessage, ServerResponse } from 'node:http'
++import type { Context } from '@deepseek-ai/cordis'
++import { attributionHeaders } from '@deepseek-ai/dsh-llm'
++
++/** Absolute pathname this route claims. */
++export const BALANCE_ROUTE_PATH = '/deepseek/balance'
++
++/** One currency bucket, kept as the provider's own decimal strings. */
++export interface DeepSeekBalanceEntry {
++  currency: string
++  totalBalance: string
++  grantedBalance: string
++  toppedUpBalance: string
++}
++
++/** The successful response body this route serves. */
++export interface DeepSeekBalanceBody {
++  isAvailable: boolean
++  balances: DeepSeekBalanceEntry[]
++}
++
++/** What the route needs from the owning plugin's own resolution state. */
++export interface BalanceRouteDeps {
++  /** Current connection base URL (the same resolution the chat adapter uses). */
++  getBaseURL: () => string
++  /** Resolve the current API key, or throw the adapter's own missing-credential error. */
++  getApiKey: () => Promise<string>
++}
++
++/**
++ * The one `ctx.webServer` method this module calls. Declared structurally and
++ * read through an untyped `ctx.get`, rather than importing the webserver
++ * package's Context merge: a type-only import would still need a tsconfig
++ * project reference, and a build edge from the LLM adapter to the HTTP host is
++ * a steep price for one route. A profile without the service registers
++ * nothing, so the seam stays optional at runtime too.
++ */
++interface WebServerSeam {
++  register(route: {
++    kind: 'exact' | 'prefix'
++    path: string
++    handler: (req: IncomingMessage, res: ServerResponse) => void | Promise<void>
++  }): () => void
++}
++
++interface WireEntry {
++  currency?: unknown
++  total_balance?: unknown
++  granted_balance?: unknown
++  topped_up_balance?: unknown
++}
++
++interface WireResponse {
++  is_available?: unknown
++  balance_infos?: unknown
++}
++
++/**
++ * Validate the untrusted provider JSON.
++ * @param value - parsed provider response.
++ * @returns the normalized body, or undefined when the shape does not match.
++ */
++export function parseBalance(value: unknown): DeepSeekBalanceBody | undefined {
++  if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined
++  const wire = value as WireResponse
++  if (typeof wire.is_available !== 'boolean' || !Array.isArray(wire.balance_infos)) return undefined
++  const balances: DeepSeekBalanceEntry[] = []
++  for (const entry of wire.balance_infos as unknown[]) {
++    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) return undefined
++    const fields = entry as WireEntry
++    if (typeof fields.currency !== 'string'
++      || typeof fields.total_balance !== 'string'
++      || typeof fields.granted_balance !== 'string'
++      || typeof fields.topped_up_balance !== 'string') {
++      return undefined
++    }
++    balances.push({
++      currency: fields.currency,
++      totalBalance: fields.total_balance,
++      grantedBalance: fields.granted_balance,
++      toppedUpBalance: fields.topped_up_balance,
++    })
++  }
++  return { isAvailable: wire.is_available, balances }
++}
++
++/** Write one JSON response, closing it. */
++function sendJson(res: ServerResponse, status: number, body: unknown): void {
++  const payload = JSON.stringify(body)
++  res.writeHead(status, {
++    'content-type': 'application/json; charset=utf-8',
++    'content-length': String(Buffer.byteLength(payload)),
++    // A balance is a live figure; a cached 200 would show a stale amount after
++    // the account is topped up.
++    'cache-control': 'no-store',
++  })
++  res.end(payload)
++}
++
++/**
++ * Register the balance route on `ctx.webServer` when that service is present.
++ *
++ * Every failure answers with a JSON `{ error }` body and a status the page can
++ * render as "unavailable": a missing key or an upstream refusal is an ordinary
++ * state of this readout, not a server fault.
++ * @param ctx - the owning `llm-deepseek` plugin context.
++ * @param deps - the two resolution closures shared with the chat adapter.
++ */
++export function registerBalanceRoute(ctx: Context, deps: BalanceRouteDeps): void {
++  const handler = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
++    if (req.method !== 'GET') {
++      sendJson(res, 405, { error: 'method not allowed' })
++      return
++    }
++    let apiKey: string
++    try {
++      apiKey = await deps.getApiKey()
++    } catch (error) {
++      sendJson(res, 409, { error: error instanceof Error ? error.message : String(error) })
++      return
++    }
++    const baseURL = deps.getBaseURL().replace(/\/+$/u, '')
++    let upstream: Response
++    try {
++      upstream = await fetch(`${baseURL}/user/balance`, {
++        headers: { ...attributionHeaders(), authorization: `Bearer ${apiKey}` },
++      })
++    } catch {
++      sendJson(res, 502, { error: `could not reach ${baseURL}` })
++      return
++    }
++    if (!upstream.ok) {
++      sendJson(res, 502, { error: `provider returned HTTP ${String(upstream.status)}` })
++      return
++    }
++    let parsed: unknown
++    try {
++      parsed = await upstream.json()
++    } catch {
++      sendJson(res, 502, { error: 'provider returned a non-JSON response' })
++      return
++    }
++    const body = parseBalance(parsed)
++    if (body === undefined) {
++      sendJson(res, 502, { error: 'provider returned an unexpected shape' })
++      return
++    }
++    sendJson(res, 200, body)
++  }
++
++  // Scoped inject rather than a read at this plugin's own apply time: the web
++  // server activates after the LLM adapters, so a direct `ctx.get` would
++  // always miss it. A profile that never provides one (headless, TUI) simply
++  // never runs this callback.
++  ctx.inject(['webServer'], (scope) => {
++    const webServer = scope.get('webServer' as never) as unknown as WebServerSeam
++    scope.effect(
++      () => webServer.register({ kind: 'exact', path: BALANCE_ROUTE_PATH, handler }),
++      'llm-deepseek: balance route',
++    )
++  })
++}

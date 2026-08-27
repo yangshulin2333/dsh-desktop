@@ -5,6 +5,14 @@ still open, and the traps that cost the most time the first time round.
 
 Written 2026-08-27.
 
+Updated by Codex on 2026-08-27: the user has confirmed workspace selection,
+reselection and dialog cancellation in 0.1.1. The picker bug is accepted as
+fixed for the unpacked app; installer and portable entrypoints remain
+unverified. See [validation record](docs/validation-0.1.1.md).
+Harness sources are committed locally and a clean-checkout build has passed;
+see [source recovery and build verification](docs/reproducible-build.md).
+Do not automate the user's desktop; they will perform the actual clicks.
+
 ---
 
 ## 1. What this project is
@@ -18,11 +26,12 @@ Two directories are involved, and **only the first is this repository**:
 | Path | What it is | In git? |
 | --- | --- | --- |
 | `D:\AI\dsh-desktop` | this repo — Electron shell, build scripts, docs | yes |
-| `D:\AI\DeepSeek` | a clone of `deepseek-ai/deepseek-harness` with the two features patched in | **no — see §5** |
+| `D:\AI\DeepSeek` | harness source, local branch `desktop/0.1.1` | yes, two local commits; not pushed — see §5 |
 
-The desktop build pulls the harness from the **npm registry**, then overlays the
-built `lib/` of three locally patched packages from `D:\AI\DeepSeek`. So a
-release needs both directories present.
+The desktop build installs the **npm registry** dependency graph frozen in
+`runtime-lock/`, then overlays the built `lib/` of four patched packages from
+the checkout passed to `--harness`. The source can be recovered without the
+original `D:\AI\DeepSeek` directory using the patch in this repository.
 
 ---
 
@@ -30,6 +39,12 @@ release needs both directories present.
 
 ### Working and verified
 
+- **0.1.1 workspace picker user acceptance passed:** selection, workspace
+  reselection and cancellation were confirmed by the user. Their screenshot
+  shows the `DSH` workspace in the sidebar and composer.
+  Both the app and backend processes were confirmed under
+  `dist/0.1.1/win-unpacked/`, with package version 0.1.1. This closes the
+  reported picker bug, not full release acceptance.
 - **Both features**, tested live in the browser UI and through the packaged app:
   - session spend in CNY on the composer stats row (`约 ¥0.02`)
   - DeepSeek account balance in Settings → Models (`账户余额： CNY 14.67`,
@@ -41,25 +56,27 @@ release needs both directories present.
 
 ### Open / unverified
 
-1. **Workspace picker (`选择工作区`) reported failing** with
+1. **Picker fix accepted; distribution entrypoints still unverified.** The
+   workspace picker (`选择工作区`) previously failed with
    `directory picker failed: win32 folder dialog worker exited before reporting a result`.
 
-   Status: **probably already fixed, not yet confirmed by a user click.**
+   Status: **0.1.0 failure reproduced; 0.1.1 headless regression and user
+   checks for selection, workspace reselection and cancellation passed.**
 
-   What was established:
-   - The worker loads fine under the packaged Electron — koffi resolves, the
-     module compiles (running `worker.cjs` manually only complains about the
-     missing IPC channel, which is expected).
-   - Spawning it exactly as the plugin does, from the packaged Electron binary,
-     **works**: it replies `{"kind":"showing"}` and the dialog appears.
-   - The failing report came from a build whose runtime was staged with
-     `--ignore-scripts`, so `node-pty`'s postinstall had not run (no
-     `conpty.dll`, no `OpenConsole.exe`). That has since been fixed (§3).
+   The real worker exited with code 134 in `readUtf16` at `koffi.view`.
+   Electron rejects external ArrayBuffers. The fix copies UTF-16 characters
+   with `koffi.decode(address, 'char16', -1)` and keeps IPC open until the
+   final result flushes. Exit diagnostics include the code and signal.
 
-   **Next step: launch the rebuilt app, click 选择工作区, confirm.** If it still
-   fails, instrument `spawnDialogWorker` in
-   `runtime/node_modules/@deepseek-ai/dsh-host-directory-picker-native/lib/index.js`
-   — the parent discards the child's exit reason.
+   The earlier conpty diagnosis did not establish the cause of this error.
+   Missing native binaries are a separate packaging problem. A `showing`
+   message or a visible dialog alone is not a passed selection test.
+
+   **Release follow-up:** the accepted run used the unpacked executable;
+   installer and portable entrypoints have not been user-verified. Do not
+   reopen or click windows for them. Cancellation means dismissing the
+   system folder dialog without adding a workspace, not clearing the
+   currently selected workspace.
 
 2. **The packaged `DSH Desktop.exe` carries Electron's default icon.** Installer,
    Start Menu and desktop shortcut icons are correct; only the executable's own
@@ -69,7 +86,10 @@ release needs both directories present.
 3. **Builds are unsigned.** SmartScreen will warn on first run. Removing that
    needs a real code-signing certificate.
 
-4. **Nothing is committed yet.** `git init` had not run at handover time.
+4. **No remote backup yet:** desktop `master` starts at `5eb00e8` and has no
+   remote. Harness changes are committed locally as `bdefe56f45` and
+   `4952bebc28`, with recovery source pins in [patches/](patches/README.md).
+   No fork has been created and nothing has been pushed.
 
 ---
 
@@ -77,7 +97,7 @@ release needs both directories present.
 
 ```bash
 cd D:\AI\dsh-desktop
-npm install
+npm ci
 
 # stage the harness runtime (needs D:\AI\DeepSeek already built)
 node scripts/build-runtime.mjs --harness D:/AI/DeepSeek
@@ -85,6 +105,13 @@ node scripts/build-runtime.mjs --harness D:/AI/DeepSeek
 npx electron-builder --win        # -> dist/
 npm start                         # or run from source
 ```
+
+For the isolated 0.1.1 candidate, run `npm run test:picker` before
+`npx electron-builder --win --config.directories.output=dist/0.1.1`.
+Do not overwrite the accepted candidate. The staging script requires an absent
+or empty output; choose a fresh checkout or `--output` path for rebuilds.
+See the [PowerShell build guide](docs/reproducible-build.md) for the complete
+locked-dependency recovery and verification procedure.
 
 If you changed anything in `D:\AI\DeepSeek`, rebuild it **first**:
 
@@ -103,8 +130,8 @@ harness packages declare runtime dependencies only under `peerDependencies` +
 deployable closure, so a deployed tree boots to
 `Cannot find package '@deepseek-ai/cordis-plugin-group'`. This is true with both
 `--prod` and `--prod=false`. The published packages carry real `dependencies`,
-which is why `scripts/build-runtime.mjs` installs `@deepseek-ai/dsh` from npm and
-then overlays the three patched packages.
+which is why `scripts/build-runtime.mjs` installs `@deepseek-ai/dsh` from npm
+with `--frozen-lockfile` and then overlays the four patched packages.
 
 `--node-linker=hoisted` matters: it puts packages at
 `node_modules/@deepseek-ai/<name>` instead of pnpm's hashed store layout, which
@@ -143,7 +170,7 @@ scripts, and this pnpm (11.0.8) reads the decision from `allowBuilds` in
 `pnpm-workspace.yaml` — *not* `onlyBuiltDependencies`, and not from
 `package.json`. Every package that has a hook must be listed explicitly, allowed
 or denied; an undeclared one is a hard install error. `scripts/build-runtime.mjs`
-writes this file. Skipping the hooks yields a runtime that boots and chats but
+copies `runtime-lock/pnpm-workspace.yaml`. Skipping the hooks yields a runtime that boots and chats but
 breaks the moment a feature reaches for a native binary.
 
 **koffi's addon is not in `koffi/build`.** It ships as the optional dependency
@@ -185,12 +212,19 @@ for d in packages/*/*/ vendor/*/; do [ -f "$d/package.json" ] || echo "STRAY: $d
 
 ---
 
-## 5. The harness patches — the part with no home yet
+## 5. Harness source pins and recovery
 
-`D:\AI\DeepSeek` is a plain clone with **uncommitted changes and no fork**. This
-is the biggest loose end: if that directory is lost, the two features are lost.
+`D:\AI\DeepSeek` has two commits on local branch `desktop/0.1.1` and a clean
+worktree. The feature commit is `bdefe56f45`; the picker fix is `4952bebc28`.
+There is no published fork. The two features and picker repair are also preserved in
+[patches/deepseek-harness.patch](patches/deepseek-harness.patch), against base
+`b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`. Application against that base
+produces the exact committed source tree, checked using a separate Git index.
+A clean local clone has passed frozen dependency installation and the complete
+harness build. Full ids and hashes are in [harness-source.json](patches/harness-source.json).
 
-Changed files (all under `D:\AI\DeepSeek`):
+Original feature files (all under `D:\AI\DeepSeek`; the snapshot also includes
+the picker source, tests and repair documentation):
 
 ```
  M packages/client/ui-conversation/src/client/apply.ts
@@ -220,21 +254,24 @@ keeping:
   server activates after the LLM adapters. The same ordering trap applies to
   `ctx.modelDirectories` in `StatsLine`.
 
-**Recommended next action:** fork `deepseek-ai/deepseek-harness`, commit these
-changes on a branch, and change `scripts/build-runtime.mjs`'s `--harness` input
-to that fork. Until then the build is not reproducible by anyone else.
+**External backup remains:** choose the GitHub owner and visibility before
+creating a harness fork and desktop repository, then push the local commits.
+Do not push the desktop branch to the official upstream remote. Local source
+recovery and dependency locking work without a published fork, but are not an
+off-machine backup. See [build verification](docs/reproducible-build.md).
 
 ---
 
 ## 6. Suggested backlog
 
-1. Confirm the workspace picker (§2.1). Highest priority — it is a core flow.
-2. Fork the harness and commit the patches (§5). Second priority — reproducibility.
+1. Choose remote ownership/visibility and push the local commits (§5).
+   Source commits and clean harness build verification are complete locally.
+2. Verify installer and portable entrypoints before a full release (§2.1).
 3. Decide on Developer Mode vs. the missing exe icon (§4).
 4. Consider a CI workflow. Note it would need the harness fork, a large-heap
    build, and either Developer Mode on the runner or the current flag.
-5. Version pinning: `DSH_VERSION` in `scripts/build-runtime.mjs` is
-   `0.1.1-rc.2`. The harness is a fast-moving developer preview that states it
+5. Version pinning: `runtime-lock/package.json` pins `0.1.1-rc.2`, with the
+   transitive graph in `runtime-lock/pnpm-lock.yaml`. The harness is a fast-moving developer preview that states it
    will make breaking changes; the overlay assumes the registry copy has the
    same package layout as the local build. A version bump needs both a harness
    rebase and a re-test of the overlay.

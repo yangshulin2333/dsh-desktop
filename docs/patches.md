@@ -1,18 +1,20 @@
-# The two harness patches
+# Harness features and compatibility patches
 
-`scripts/build-runtime.mjs --harness <path>` overlays the built `lib/` of three
+`scripts/build-runtime.mjs --harness <path>` overlays the built `lib/` of four
 harness packages over their registry copies. This is what those changes do, and
 what they deliberately do not do.
 
-The patches live in a DeepSeek Harness checkout, not in this repository. Each
-is small on purpose: the smaller the diff, the easier it is to rebase onto a
-new harness release.
+The editable sources live in the DeepSeek Harness checkout on local branch
+`desktop/0.1.1`. This repository also keeps a
+[recovery patch and source pins](../patches/README.md). The
+[build guide](reproducible-build.md) explains dependency locking and verification.
 
 | Package | Change |
 | --- | --- |
 | `dsh-llm-deepseek` | serves `GET /deepseek/balance` |
 | `dsh-client-ui-conversation` | appends an estimated-cost group to the stats row |
 | `dsh-client-ui-settings-models` | renders the balance under the API-key field |
+| `dsh-host-directory-picker-native` | copies UTF-16 paths safely under Electron and keeps IPC open until the result flushes |
 
 ## 1. Session spend in CNY
 
@@ -91,3 +93,24 @@ The route registers through a scoped `ctx.inject(['webServer'], …)` rather tha
 a direct read at plugin-apply time: the web server activates after the LLM
 adapters, so a direct read always misses it. Profiles with no web server
 (headless, TUI) simply never register it.
+
+## 3. Windows directory-picker compatibility
+
+The 0.1.0 worker can display the dialog but crashes with exit code 134 when
+`readUtf16` calls `koffi.view`. Electron forbids external ArrayBuffers; this is
+independent of whether the native DLLs were bundled successfully. The fix uses
+`koffi.decode(address, 'char16', -1)` to copy the NUL-terminated UTF-16 string.
+It also avoids treating a zero low byte as the end of a nonzero UTF-16 character.
+
+The worker disconnects IPC only after a terminal `done` or `error` message has
+flushed, never after the earlier `showing` notice. Unexpected exits include the
+exit code and signal. Native COM strings are freed even when decoding fails.
+
+`npm run test:picker` covers ordinary paths, Unicode paths and cancellation
+under the actual Electron executable without opening a window. The modal COM
+interaction is mocked; user-driven selection is still required for acceptance.
+
+Electron remains the desktop host. Changing to Tauri would still require
+bundling and supervising the DSH backend; it would not remove that work.
+If broader native-plugin incompatibilities appear, a separately bundled Node.js
+backend can be evaluated without replacing the Electron UI.

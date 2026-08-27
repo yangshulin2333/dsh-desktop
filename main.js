@@ -5,8 +5,8 @@
  * The harness is a Node program, and Electron already ships a Node runtime, so
  * the backend is spawned as `process.execPath` with `ELECTRON_RUN_AS_NODE=1`:
  * the packaged app needs no Node, pnpm, or toolchain on the target machine.
- * The staged runtime under `resources/runtime` is a plain registry closure with
- * no native addons, so nothing has to match Electron's ABI either.
+ * The staged runtime under `resources/runtime` includes native Node-API
+ * addons. Their ABI is stable, but their memory APIs must also support Electron.
  *
  * Port selection asks the OS for a free one rather than pinning 3080, so the
  * app never collides with a harness the user is already running from a

@@ -1,0 +1,37 @@
+{
+  "version": "0.1.1",
+  "status": "candidate-picker-user-acceptance-passed",
+  "uiAcceptance": {
+    "date": "2026-08-27",
+    "testedArtifact": "dist/0.1.1/win-unpacked/DSH Desktop.exe",
+    "workspaceMainFlow": "user-reported-working-with-workspace-visible-in-screenshot",
+    "workspaceReselect": "user-confirmed-passed",
+    "nativeDialogCancel": "user-confirmed-passed-after-cancellation-scope-clarified",
+    "runningVersionVerified": "0.1.1",
+    "pending": [
+      "installer-and-portable-entrypoints"
+    ]
+  },
+  "electron": "42.10.1",
+  "harnessVersion": "0.1.1-rc.2",
+  "harnessBase": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
+  "sourceRecord": "../patches/harness-source.json",
+  "reproductionRecord": "reproducible-build.md",
+  "artifacts": [
+    {
+      "Name": "DSH-Desktop-Setup-0.1.1-x64.exe",
+      "Length": 135125774,
+      "SHA256": "424A44BD154BB0CD0A368752EF3A49449F7474EA5DB374EF78B97FC368759E60"
+    },
+    {
+      "Name": "DSH-Desktop-Portable-0.1.1-x64.exe",
+      "Length": 134895208,
+      "SHA256": "E64FCA7BBDAB87B44738A42E5AC14C7D7AB194BBF09E3C9F3DB977AE9A32D12E"
+    },
+    {
+      "Name": "deepseek-harness.patch",
+      "Length": 46159,
+      "SHA256": "0F3C0F24CC49CDB67329D413829102273A0292E891FCD64C9C5F06FA5C0A4767"
+    }
+  ]
+}

@@ -47,32 +47,37 @@ one leaves the other untouched.
 
 ## Build from source
 
-Requirements: Node.js 22.19+ or 24+, pnpm, and — only if you want the two
-patches — a built checkout of the harness.
+Requirements: Node.js `^22.19.0 || >=24.0.0`, pnpm, Git, and a built checkout
+of the patched harness. Exact source pins, recovery commands, tested tool
+versions and verification limits are in [the build guide](docs/reproducible-build.md).
 
 ```bash
 git clone <this repo>
 cd dsh-desktop
-npm install
+npm ci
 ```
 
 Stage the harness runtime the app ships:
 
 ```bash
-# plain upstream runtime, no patches
-npm run build:runtime
-
-# or, with the local patches compiled in
+# desktop runtime with the compiled feature and compatibility patches
 node scripts/build-runtime.mjs --harness /path/to/deepseek-harness
+
+# explicit opt-in for an unpatched upstream runtime (not a desktop release)
+node scripts/build-runtime.mjs --upstream-only --output .repro/upstream-runtime
 ```
 
 `--harness` expects a checkout where `pnpm run build` has already run, and
 copies the built `lib/` of the patched packages over the registry copies.
+The registry dependency graph is frozen by [runtime-lock/](runtime-lock/package.json).
+Omitting the source is an error unless `--upstream-only` is explicit. Outputs
+must be absent or empty; existing runtimes are never automatically deleted.
 
 Then run or package:
 
 ```bash
 npm start        # run from source
+npm test         # build-input checks, headless picker and keyless backend startup
 npm run dist     # installer + portable exe into dist/
 ```
 
@@ -80,9 +85,18 @@ npm run dist     # installer + portable exe into dist/
 
 The harness is a Node program and Electron already bundles a Node runtime, so
 the backend runs as `process.execPath` with `ELECTRON_RUN_AS_NODE=1` — the
-packaged app needs nothing installed on the target machine. The staged runtime
-is a plain registry closure with **no native addons**, so nothing has to match
-Electron's ABI.
+packaged app does not require a separately installed Node.js or pnpm. The staged
+runtime includes Node-API addons such as koffi and node-pty. ABI compatibility
+alone is not enough: the directory-picker patch avoids external ArrayBuffers
+that Electron's memory cage does not support.
+
+The client and backend run locally; DeepSeek inference and account balance
+still require an API key and network access. This is not an offline model.
+
+Run `npm run test:picker` after staging a patched runtime. This headless test
+uses the real Electron worker, Koffi string decoding and IPC, with modal COM
+calls replaced by a checked test double. It does not open a directory dialog;
+actual selection and cancellation remain user acceptance steps.
 
 The app asks the OS for a free port instead of pinning one, so it never
 collides with a harness you are already running from a terminal.
@@ -144,5 +158,6 @@ installer, Start Menu, and desktop shortcut icons all still come from
 
 ## License
 
-[MIT](LICENSE). DeepSeek Harness itself is MIT-licensed and is fetched from the
-public npm registry at build time; this repository redistributes none of it.
+[MIT](LICENSE). DeepSeek Harness is fetched from the public npm registry at
+build time. The source recovery patch is retained under its
+[upstream MIT license](patches/LICENSE.deepseek-harness).
