@@ -1,0 +1,81 @@
+{
+  "name": "dsh-desktop",
+  "productName": "DSH Desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An unofficial desktop client for DeepSeek Harness, with per-conversation CNY spend and an account balance readout.",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "build:runtime": "node scripts/build-runtime.mjs",
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "dist:dir": "electron-builder --win --dir"
+  },
+  "devDependencies": {
+    "electron": "^42.10.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.dsh.desktop",
+    "productName": "DSH Desktop",
+    "copyright": "Copyright (c) 2026 DSH Desktop contributors",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "build/icon.ico",
+      "!runtime/**",
+      "!dist/**",
+      "!scripts/**"
+    ],
+    "extraResources": [
+      {
+        "from": "runtime",
+        "to": "runtime",
+        "filter": [
+          "**/*",
+          "!**/*.map",
+          "!**/*.ts",
+          "!**/*.md",
+          "!**/test/**",
+          "!**/tests/**",
+          "!**/.bin/**"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DSH Desktop",
+      "artifactName": "DSH-Desktop-Setup-${version}-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "DSH-Desktop-Portable-${version}-${arch}.${ext}"
+    },
+    "compression": "maximum"
+  }
+}

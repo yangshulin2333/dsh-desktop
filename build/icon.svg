@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- DSH Desktop's own mark. Deliberately NOT the DeepSeek logo: this is an
+       unofficial community client, and the DeepSeek Harness brand guidelines
+       ask projects not to reuse official brand assets in a way that suggests
+       endorsement. A terminal chevron plus a caret reads as "agent shell" and
+       stays legible down to 16px. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141922"/>
+      <stop offset="1" stop-color="#0a0d12"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5eead4"/>
+      <stop offset="1" stop-color="#3b82f6"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="8" y="8" width="496" height="496" rx="106" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="16"/>
+
+  <!-- Chevron: the prompt. -->
+  <path d="M150 168 L246 256 L150 344"
+        fill="none" stroke="url(#accent)" stroke-width="46"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Caret: the input seat, sitting on the prompt's baseline. -->
+  <rect x="286" y="318" width="118" height="42" rx="21" fill="#ffffff" fill-opacity="0.92"/>
+</svg>
