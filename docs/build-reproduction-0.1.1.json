@@ -1,0 +1,78 @@
+{
+  "date": "2026-08-27",
+  "status": "clean-checkout-build-and-headless-artifact-checks-passed",
+  "scope": "Windows x64; cached downloads allowed; no bit-for-bit or new-machine guarantee",
+  "desktopCodeCommit": "619b67ec988b8116980407523a97d6d3dd07ed4d",
+  "harnessCommit": "4952bebc287ac8ff6148316ea0a1deae436b3f1c",
+  "harnessSourceTree": "1a61c75417b59cd5622c1c411192f7bb9585611c",
+  "recoveryPatchSha256": "0f3c0f24cc49cdb67329d413829102273a0292e891fcd64c9c5f06fa5c0a4767",
+  "runtimeLockSha256": "d2e06350c731443286c624fd696211030f85e3d25f36c7bb4ea6d484052edcda",
+  "tools": {
+    "node": "24.15.0",
+    "npm": "11.12.1",
+    "harnessPnpm": "11.7.0",
+    "runtimePnpm": "11.0.8",
+    "electron": "42.10.1",
+    "electronBuilder": "25.1.8"
+  },
+  "checks": {
+    "patchReconstructsCommittedSourceTree": true,
+    "cleanHarnessFrozenInstall": true,
+    "cleanHarnessFullBuild": true,
+    "harnessWorktreeCleanAfterBuild": true,
+    "cleanDesktopNpmCi": true,
+    "desktopTests": {
+      "passed": 9,
+      "failed": 0
+    },
+    "installerAndPortableBuild": true,
+    "packagedExeTests": {
+      "passed": 9,
+      "failed": 0
+    },
+    "overlayHashesVerified": 4,
+    "developmentFilesExcludedFromAsar": true,
+    "desktopWorktreeCleanAfterBuild": true,
+    "originalAcceptedArtifactHashesUnchanged": true,
+    "realProviderRequests": false,
+    "desktopAutomation": false
+  },
+  "audits": {
+    "buildToolchain": {
+      "high": 11,
+      "critical": 1,
+      "total": 12,
+      "dependencyVersionsChanged": false,
+      "primaryDirectDependency": "electron-builder@25.1.8",
+      "criticalTransitiveDependency": "tar",
+      "followUp": "Separate toolchain upgrade and regression; no forced audit fix performed"
+    },
+    "registryRuntimeProduction": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "caveat": "Audit results are a point-in-time registry signal, not a complete security assessment."
+  },
+  "artifactsDirectory": ".repro/desktop-0.1.1/dist",
+  "artifacts": [
+    {
+      "Name": "DSH-Desktop-Setup-0.1.1-x64.exe",
+      "Length": 135124239,
+      "SHA256": "C431BDE3CF3E286DCA590723733695041D68CB15AE29BFD630693B4A11C38228"
+    },
+    {
+      "Name": "DSH-Desktop-Portable-0.1.1-x64.exe",
+      "Length": 134893693,
+      "SHA256": "50FA7254E1FC439231301F395F200FC5138669CDF6E249643397EE81B7840128"
+    }
+  ],
+  "remaining": [
+    "GitHub ownership and visibility decision, remote creation and push",
+    "Build-toolchain audit remediation",
+    "Installer/portable user acceptance and new-machine validation",
+    "Code signing and executable icon"
+  ]
+}

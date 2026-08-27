@@ -9,7 +9,8 @@ Updated by Codex on 2026-08-27: the user has confirmed workspace selection,
 reselection and dialog cancellation in 0.1.1. The picker bug is accepted as
 fixed for the unpacked app; installer and portable entrypoints remain
 unverified. See [validation record](docs/validation-0.1.1.md).
-Harness sources are committed locally and a clean-checkout build has passed;
+Harness and desktop sources are committed locally. Clean-checkout builds,
+both Windows package targets and 9 packaged-backend checks have passed;
 see [source recovery and build verification](docs/reproducible-build.md).
 Do not automate the user's desktop; they will perform the actual clicks.
 
@@ -51,8 +52,12 @@ original `D:\AI\DeepSeek` directory using the patch in this repository.
     cross-checked against a direct call to `https://api.deepseek.com/user/balance`)
 - **The packaged app boots**: window opens, harness serves, `/deepseek/balance`
   returns 200 from inside `dist/win-unpacked`.
-- **Artifacts build**: `DSH-Desktop-Setup-0.1.0-x64.exe` and
-  `DSH-Desktop-Portable-0.1.0-x64.exe`, ~129 MB each.
+- **0.1.1 clean rebuild:** a clean harness clone and desktop checkout produce
+  `DSH-Desktop-Setup-0.1.1-x64.exe` and `DSH-Desktop-Portable-0.1.1-x64.exe`.
+  The packaged exe passes all 9 headless checks. Reproduction artifacts are
+  under `.repro/desktop-0.1.1/dist/`; the accepted `dist/0.1.1/` files are
+  unchanged. Full source ids, tool versions and hashes are in the
+  [reproduction record](docs/build-reproduction-0.1.1.json).
 
 ### Open / unverified
 
@@ -270,12 +275,14 @@ off-machine backup. See [build verification](docs/reproducible-build.md).
 ## 6. Suggested backlog
 
 1. Choose remote ownership/visibility and push the local commits (§5).
-   Source commits and clean harness build verification are complete locally.
-2. Verify installer and portable entrypoints before a full release (§2.1).
-3. Decide on Developer Mode vs. the missing exe icon (§4).
-4. Consider a CI workflow. Note it would need the harness fork, a large-heap
+   Source commits, clean builds, packaging and headless artifact checks are
+   complete locally.
+2. Assess and remediate the build-toolchain audit findings before release (§2.5).
+3. Verify installer and portable entrypoints before a full release (§2.1).
+4. Decide on Developer Mode vs. the missing exe icon (§4).
+5. Consider a CI workflow. Note it would need the harness fork, a large-heap
    build, and either Developer Mode on the runner or the current flag.
-5. Version pinning: `runtime-lock/package.json` pins `0.1.1-rc.2`, with the
+6. Version pinning: `runtime-lock/package.json` pins `0.1.1-rc.2`, with the
    transitive graph in `runtime-lock/pnpm-lock.yaml`. The harness is a fast-moving developer preview that states it
    will make breaking changes; the overlay assumes the registry copy has the
    same package layout as the local build. A version bump needs both a harness

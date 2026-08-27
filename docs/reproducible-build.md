@@ -76,7 +76,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Packaging failed' }
 - 独立 clone 从无 `node_modules`、无 `lib` 状态进行 frozen install 和完整 `pnpm run build`：通过，构建后 Git 工作区干净。
 - 新运行时使用固定 registry 锁文件安装并覆盖四包：通过，锁文件字节未变。
 - 5 项构建输入检查、3 项 Electron picker 后台回归、1 项空数据目录/无密钥的真实后台启动检查：通过。
-- 桌面干净 checkout 的依赖安装和完整打包验证仍在进行，最终结果见本页后续记录。
+- 桌面独立 checkout（代码提交 `619b67e`）执行 `npm ci`、锁定运行时生成、9 项测试、安装包和便携包构建：全部通过；构建后 Git 工作区干净。
+- 使用重建后的打包 exe 及其内置运行时再跑 9 项后台测试：全部通过。`app.asar` 仅含 `main.js`、`package.json` 与图标；四个覆盖包入口哈希与构建记录一致。
+- 机器可读结果与两个产物的 SHA-256 见 [build-reproduction-0.1.1.json](build-reproduction-0.1.1.json)。验证产物保留在 `.repro/desktop-0.1.1/dist/`，不是对已验收产物的替换。
 - 依赖审计另行记录：桌面打包工具链 `npm audit` 报 12 项（11 high、1 critical），主要为 electron-builder 25.1.8 的传递依赖；运行时 `pnpm audit --prod` 本次报 0 项。审计结果不等于全面安全保证；本轮不执行 `audit fix --force` 或打包工具大版本升级。
 - 不使用真实密钥、不发送模型请求、不操作桌面。之前的用户 UI 验收针对 `dist/0.1.1/win-unpacked/`，该产物本轮不覆盖。
 - 安装包/便携包入口、签名与 exe 图标、全新机器测试仍是独立发布事项。harness 的全仓 `doc-sync` 三个既有失败见 [0.1.1 验收记录](validation-0.1.1.md)，不在本次构建归档范围内。
