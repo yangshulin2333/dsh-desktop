@@ -1,21 +1,11 @@
 /**
- * A deliberate no-op Windows signing hook.
+ * Historical no-op hook, retained for reference but NOT configured.
+ * It did not prevent electron-builder 25.1.8 from fetching winCodeSign and
+ * failing on symlink extraction. Do not enable it as an icon/signing fix.
  *
- * This project ships unsigned builds — there is no code-signing certificate to
- * sign with. Declaring an explicit hook (rather than leaving signing
- * unconfigured) also avoids electron-builder fetching its `winCodeSign`
- * bundle, whose archive contains macOS symlinks that a normal Windows account
- * has no privilege to extract:
- *
- *   ERROR: Cannot create symbolic link : ...\darwin\10.12\lib\libcrypto.dylib
- *
- * Repacking that archive without the symlinks does not help — app-builder
- * verifies its sha512 — and the alternative fix is enabling Windows Developer
- * Mode on every build machine. A no-op hook keeps the build working for
- * contributors on a stock Windows install.
- *
- * If you do have a certificate, replace this hook (or drop it and configure
- * `win.signtoolOptions`) — and expect to need Developer Mode.
+ * The active unsigned strategy is win.signAndEditExecutable=false together
+ * with the separate afterPack resource editor in brand-windows.cjs.
+ * See README.md for the failed approaches and current verification steps.
  * @returns nothing; the executable is left unsigned.
  */
 exports.default = async function sign() {

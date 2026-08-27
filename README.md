@@ -81,6 +81,22 @@ npm test         # build-input checks, headless picker and keyless backend start
 npm run dist     # installer + portable exe into dist/
 ```
 
+For the 0.1.2 taskbar fix, use an isolated output and check the actual EXE:
+
+```bash
+npm run dist -- --config.directories.output=dist/0.1.2
+npm run test:artifact
+```
+
+`test:artifact` defaults to `dist/<package-version>/win-unpacked/DSH Desktop.exe`;
+`DSH_TEST_EXECUTABLE` can select a different artifact. It checks the embedded
+name, every icon frame and ASAR integrity without opening a window.
+
+When upgrading from 0.1.1, manually unpin the old **Electron** entry, fully
+exit the old app, open the new version and pin it again. The old shortcut
+still points to the old EXE; it is not migrated automatically. See the
+[0.1.2 taskbar validation record](docs/validation-0.1.2.md).
+
 ## How it works
 
 The harness is a Node program and Electron already bundles a Node runtime, so
@@ -149,12 +165,22 @@ Things that do **not** work, in case you try them:
 - `CSC_IDENTITY_AUTO_DISCOVERY=false`, a no-op `sign` hook, or `SIGNTOOL_PATH`
   — none of them stop the bundle fetch.
 
-Enabling **Windows Developer Mode** (Settings → System → For developers) grants
-the symlink privilege and lets you drop this flag. The trade-off if you do:
-`signAndEditExecutable: false` also skips `rcedit`, so the packaged
-`DSH Desktop.exe` keeps Electron's default icon and version metadata — the
-installer, Start Menu, and desktop shortcut icons all still come from
-`build/icon.ico`, so this is only visible on the executable itself in Explorer.
+In 0.1.1 this also left the EXE's embedded icon and version information as
+**Electron**. This affects taskbar pinning and the right-click application
+entry, not just Explorer; setting `BrowserWindow.icon` alone does not fix it.
+
+Since 0.1.2, [scripts/brand-windows.cjs](scripts/brand-windows.cjs) runs in
+`afterPack` and separately writes the terminal icon and DSH Desktop version
+information into the main EXE. It uses the same `resedit@1.7.2` already locked
+by electron-builder, now declared directly as a build dependency. It preserves
+the ASAR integrity resource, manifest and executable code, and does not edit
+third-party binaries. No signing bundle or Developer Mode is needed for this
+step. Signed input is rejected instead of silently invalidating its signature.
+
+The packaged window also sets matching taskbar relaunch details. Portable
+builds use `PORTABLE_EXECUTABLE_FILE`, not the temporary extracted executable
+that the portable launcher removes on exit. Actual pin/unpin and relaunch
+behavior remains a user acceptance check, separate from background tests.
 
 ## License
 

@@ -1,0 +1,55 @@
+{
+  "version": "0.1.2",
+  "date": "2026-08-27",
+  "status": "candidate-taskbar-automated-checks-passed-ui-pending",
+  "electron": "42.10.1",
+  "electronBuilder": "25.1.8",
+  "resourceEditor": "resedit@1.7.2",
+  "harnessVersion": "0.1.1-rc.2",
+  "sourceRecord": "../patches/harness-source.json",
+  "validationRecord": "validation-0.1.2.md",
+  "checks": {
+    "sourceTests": { "passed": 14, "failed": 0 },
+    "packagedTests": { "passed": 14, "failed": 0 },
+    "artifactTests": { "passed": 3, "failed": 0 },
+    "embeddedIconFramesEqualToSource": 7,
+    "asarIntegrity": "matched",
+    "windowsNativeVersionInfo": "DSH Desktop / 0.1.2.0",
+    "windowsNativeIconLoad": "32x32-loaded",
+    "setupAndPortableMainExeAndAsar": "byte-identical-to-checked-unpacked-files",
+    "setupAndPortableLauncherIcons": "all-7-frames-byte-identical-to-source-ico",
+    "runtimeComparedWithAcceptedVersion": "0.1.1",
+    "runtimeFilesByteIdentical": 11499
+  },
+  "uiAcceptance": {
+    "status": "pending-user",
+    "pending": [
+      "new-taskbar-pin-icon-and-right-click-display-name",
+      "close-and-relaunch-from-new-taskbar-pin",
+      "installer-and-portable-entrypoints"
+    ],
+    "desktopAutomationUsed": false,
+    "oldPinnedShortcutModified": false
+  },
+  "artifacts": [
+    {
+      "path": "dist/0.1.2/DSH-Desktop-Setup-0.1.2-x64.exe",
+      "bytes": 135122547,
+      "sha256": "501922074340e5b6ef539f246077513f9f6893d464368088822f32cdd4707d0d"
+    },
+    {
+      "path": "dist/0.1.2/DSH-Desktop-Portable-0.1.2-x64.exe",
+      "bytes": 134891994,
+      "sha256": "cad41e789ac4ae7ff2ac3767bc5af31fdeb0e93a223ca0fe1a6a7a0eabd8ba11"
+    },
+    {
+      "path": "dist/0.1.2/win-unpacked/DSH Desktop.exe",
+      "sha256": "b929b96f8f4820e7eb7a4bf2b5a1a5aa1f717e423a593897b773bc68a39ff5f9"
+    },
+    {
+      "path": "dist/0.1.2/win-unpacked/resources/app.asar",
+      "sha256": "fed6a566ae15654799a8af4463b84adffc908f01f2420b7ad1ee133034272046"
+    }
+  ],
+  "rollback": "dist/0.1.1 remains unchanged; app data path is unchanged"
+}

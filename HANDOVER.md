@@ -5,6 +5,16 @@ still open, and the traps that cost the most time the first time round.
 
 Written 2026-08-27.
 
+Latest update: **0.1.2 taskbar branding candidate is built and background-tested.**
+The main EXE now embeds the terminal icon and DSH Desktop metadata; the window
+sets explicit relaunch details, including the persistent portable launcher.
+All 17 automated checks pass. Installer/portable payloads match the checked
+EXE and ASAR; the 11,499 runtime files are byte-identical to accepted 0.1.1.
+**Manual taskbar pinning/relaunch is still pending.** The user must unpin the
+old Electron entry, exit 0.1.1 and start 0.1.2. See
+[taskbar validation](docs/validation-0.1.2.md) and
+[artifact hashes](docs/release-0.1.2.json). Do not click or alter their taskbar.
+
 Updated by Codex on 2026-08-27: the user has confirmed workspace selection,
 reselection and dialog cancellation in 0.1.1. The picker bug is accepted as
 fixed for the unpacked app; installer and portable entrypoints remain
@@ -40,6 +50,10 @@ original `D:\AI\DeepSeek` directory using the patch in this repository.
 
 ### Working and verified
 
+- **0.1.2 EXE branding:** Windows reads `DSH Desktop` / `0.1.2.0`, every embedded
+  icon frame matches `build/icon.ico`, and ASAR integrity matches. Packaged
+  backend/picker tests pass without opening a window. This is not yet manual
+  taskbar acceptance; original 0.1.1 artifacts are retained.
 - **0.1.1 workspace picker user acceptance passed:** selection, workspace
   reselection and cancellation were confirmed by the user. Their screenshot
   shows the `DSH` workspace in the sidebar and composer.
@@ -83,10 +97,13 @@ original `D:\AI\DeepSeek` directory using the patch in this repository.
    system folder dialog without adding a workspace, not clearing the
    currently selected workspace.
 
-2. **The packaged `DSH Desktop.exe` carries Electron's default icon.** Installer,
-   Start Menu and desktop shortcut icons are correct; only the executable's own
-   embedded icon is not, because `signAndEditExecutable: false` also skips
-   `rcedit`. See §4 for why that flag is set and how to remove it.
+2. **0.1.2 taskbar acceptance is pending.** 0.1.1 had Electron's embedded icon
+   and version metadata because `signAndEditExecutable: false` also skipped
+   resource editing. This caused the pinned icon and right-click app entry to
+   revert to Electron. 0.1.2 separates resource editing from signing (§4), and
+   the EXE/resource checks pass. Existing pins are not automatically updated;
+   the user must repin and verify close/relaunch. Do not clear their icon cache
+   or restart Explorer as a substitute for fixing the old shortcut target.
 
 3. **Builds are unsigned.** SmartScreen will warn on first run. Removing that
    needs a real code-signing certificate.
@@ -116,9 +133,11 @@ npx electron-builder --win        # -> dist/
 npm start                         # or run from source
 ```
 
-For the isolated 0.1.1 candidate, run `npm run test:picker` before
-`npx electron-builder --win --config.directories.output=dist/0.1.1`.
-Do not overwrite the accepted candidate. The staging script requires an absent
+For the isolated 0.1.2 candidate, run `npm test` before
+`npm run dist -- --config.directories.output=dist/0.1.2`, then
+`npm run test:artifact`. Exact packaged-backend test commands are in the
+[0.1.2 record](docs/validation-0.1.2.md).
+Do not overwrite accepted 0.1.1. The staging script requires an absent
 or empty output; choose a fresh checkout or `--output` path for rebuilds.
 See the [PowerShell build guide](docs/reproducible-build.md) for the complete
 locked-dependency recovery and verification procedure.
@@ -205,8 +224,14 @@ pre-extracting the cache without symlinks (app-builder uses a fresh random
 directory each run), serving a repacked archive via
 `ELECTRON_BUILDER_BINARIES_MIRROR` (sha512 is verified),
 `CSC_IDENTITY_AUTO_DISCOVERY=false`, a no-op `sign` hook, or `SIGNTOOL_PATH`.
-Enabling **Windows Developer Mode** grants the symlink privilege and lets the
-flag be dropped, restoring the exe icon.
+**0.1.2 fix:** keep the flag, then use `scripts/brand-windows.cjs` in `afterPack`
+to edit only the main EXE's icon/version resources with the already-locked JS
+library `resedit@1.7.2`. No Developer Mode or signing-tool download is needed.
+Tests preserve non-resource code sections, manifest, ASAR integrity and helper
+binaries. `main.js` sets explicit window relaunch details using the same app ID
+as the process and installer; portable pinning refers to the permanent launcher.
+The previous claim that missing EXE resources only affected Explorer was wrong:
+the user's taskbar screenshots and `Electron.lnk` exposed this second effect.
 
 **`pnpm deploy` with a Windows absolute path mirrors empty directories into the
 source tree.** It created `D:\AI\DeepSeek\vendor\DeepSeek-Desktop\`. A stray
@@ -279,9 +304,9 @@ off-machine backup. See [build verification](docs/reproducible-build.md).
    complete locally.
 2. Assess and remediate the build-toolchain audit findings before release (§2.5).
 3. Verify installer and portable entrypoints before a full release (§2.1).
-4. Decide on Developer Mode vs. the missing exe icon (§4).
+4. User-verify 0.1.2 taskbar icon/name, close/relaunch and portable pinning (§2.2).
 5. Consider a CI workflow. Note it would need the harness fork, a large-heap
-   build, and either Developer Mode on the runner or the current flag.
+   build, and the current separate resource-editing/signing configuration.
 6. Version pinning: `runtime-lock/package.json` pins `0.1.1-rc.2`, with the
    transitive graph in `runtime-lock/pnpm-lock.yaml`. The harness is a fast-moving developer preview that states it
    will make breaking changes; the overlay assumes the registry copy has the

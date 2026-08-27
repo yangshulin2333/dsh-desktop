@@ -22,6 +22,7 @@ const fs = require('fs')
 
 /** Milliseconds to wait for the harness to answer before giving up. */
 const STARTUP_TIMEOUT_MS = 120_000
+const WINDOWS_APP_ID = 'com.dsh.desktop'
 
 /** Resolved once at startup; every window and the shutdown path read it. */
 let serverUrl = null
@@ -188,6 +189,20 @@ async function createWindow() {
     },
   })
 
+  if (process.platform === 'win32' && app.isPackaged) {
+    // Windows pinning uses relaunch metadata and EXE resources, not just the
+    // BrowserWindow icon. A portable run must pin its persistent launcher;
+    // electron-builder deletes the extracted process.execPath on exit.
+    const relaunchExecutable = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath
+    mainWindow.setAppDetails({
+      appId: WINDOWS_APP_ID,
+      appIconPath: relaunchExecutable,
+      appIconIndex: 0,
+      relaunchCommand: `"${relaunchExecutable}"`,
+      relaunchDisplayName: 'DSH Desktop',
+    })
+  }
+
   // Anything outside the local harness opens in the user's real browser: the
   // window is the harness UI, not a general-purpose browser.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -217,8 +232,8 @@ function stopHarness() {
   }
 }
 
-// Windows taskbar grouping and the correct icon for an unpinned window.
-if (process.platform === 'win32') app.setAppUserModelId('com.dsh.desktop')
+// Keep process, window and installer-shortcut identities consistent.
+if (process.platform === 'win32') app.setAppUserModelId(WINDOWS_APP_ID)
 
 // One window is the whole app: a second launch focuses the first instead of
 // starting a second harness against the same DSH_HOME.

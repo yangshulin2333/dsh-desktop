@@ -1,15 +1,16 @@
 {
   "name": "dsh-desktop",
   "productName": "DSH Desktop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "An unofficial desktop client for DeepSeek Harness, with per-conversation CNY spend and an account balance readout.",
   "license": "MIT",
   "main": "main.js",
   "scripts": {
     "postinstall": "node node_modules/electron/install.js",
-    "test": "node --test tests/runtime-staging.test.mjs tests/picker-runtime.test.cjs tests/runtime-startup.test.cjs",
-    "test:build": "node --test tests/runtime-staging.test.mjs",
+    "test": "node --test tests/runtime-staging.test.mjs tests/picker-runtime.test.cjs tests/runtime-startup.test.cjs tests/windows-branding.test.cjs tests/taskbar-identity.test.cjs",
+    "test:build": "node --test tests/runtime-staging.test.mjs tests/windows-branding.test.cjs tests/taskbar-identity.test.cjs",
+    "test:artifact": "node --test tests/windows-artifact.test.cjs",
     "test:startup": "node --test tests/runtime-startup.test.cjs",
     "build:runtime": "node scripts/build-runtime.mjs",
     "test:picker": "node --test tests/picker-runtime.test.cjs",
@@ -19,12 +20,14 @@
   },
   "devDependencies": {
     "electron": "^42.10.1",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "resedit": "1.7.2"
   },
   "build": {
     "appId": "com.dsh.desktop",
     "productName": "DSH Desktop",
     "copyright": "Copyright (c) 2026 DSH Desktop contributors",
+    "afterPack": "scripts/brand-windows.cjs",
     "directories": {
       "output": "dist",
       "buildResources": "build"
