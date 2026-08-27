@@ -37,6 +37,13 @@ tree and patch hash. Applying this patch to the pinned base reproduces that
 exact Git tree. The commits are not published to a remote fork; do not try to
 check them out from the official upstream repository.
 
+The complete patch and these recovery pins are now backed up in the public
+[desktop repository](https://github.com/yangshulin2333/dsh-desktop).
+On 2026-08-27, the patch downloaded through a fresh public clone reproduced
+the recorded source tree against the upstream base. This is source recovery,
+not publication of the two Harness commit objects; see the
+[publication record](../docs/publication-2026-08-27.md).
+
 A clean local clone has passed frozen dependency installation and the full
 harness build. The registry runtime dependencies are also frozen in
 [runtime-lock/](../runtime-lock/package.json). See the

@@ -5,7 +5,20 @@ still open, and the traps that cost the most time the first time round.
 
 Written 2026-08-27.
 
-Latest update: **build-toolchain audit remediation validated on 2026-08-27.**
+Latest update: **source and original history published on 2026-08-27.**
+The public repository is
+[yangshulin2333/dsh-desktop](https://github.com/yangshulin2333/dsh-desktop),
+with default branch `master`. All seven original desktop commits through
+`d7e84c9` were pushed unchanged, with explicit user approval to retain the
+existing history as-is. An unauthenticated fresh clone matched the complete
+commit list and file tree; its Harness patch reproduced the pinned source
+tree using a separate index. See the
+[publication and recovery record](docs/publication-2026-08-27.md).
+This is a source backup, not a binary release. Installers, runtime, dependencies
+and application data were not uploaded. No separate Harness fork was created;
+its complete desktop patch and recovery pins are backed up in this repository.
+
+**Build-toolchain audit remediation validated on 2026-08-27.**
 The pinned electron-builder is now 26.15.3. Build audit findings dropped from
 12 to 0; the production runtime audit also reports 0 at this check. An isolated
 clone passed 18 distinct automated checks and both Windows package targets.
@@ -51,7 +64,7 @@ Two directories are involved, and **only the first is this repository**:
 
 | Path | What it is | In git? |
 | --- | --- | --- |
-| `D:\AI\dsh-desktop` | this repo — Electron shell, build scripts, docs | yes |
+| `D:\AI\dsh-desktop` | this repo — Electron shell, build scripts, docs | yes, public `origin/master` |
 | `D:\AI\DeepSeek` | harness source, local branch `desktop/0.1.1` | yes, two local commits; not pushed — see §5 |
 
 The desktop build installs the **npm registry** dependency graph frozen in
@@ -65,6 +78,11 @@ original `D:\AI\DeepSeek` directory using the patch in this repository.
 
 ### Working and verified
 
+- **Remote source backup:** public `origin` points to the repository above;
+  local `master` tracks `origin/master`. Original history was not rewritten.
+  A fresh public clone passed Git object validation and exact history/tree
+  comparison. The downloaded Harness patch hash and reconstructed source tree
+  match `patches/harness-source.json`. The original app and data remain local.
 - **Build-toolchain remediation:** electron-builder 26.15.3 is exactly pinned
   with its lockfile. Both new audit commands report 0 known findings. Source
   and packaged tests pass 15/15, actual EXE checks pass 3/3, and both package
@@ -132,10 +150,12 @@ original `D:\AI\DeepSeek` directory using the patch in this repository.
 3. **Builds are unsigned.** SmartScreen will warn on first run. Removing that
    needs a real code-signing certificate.
 
-4. **No remote backup yet:** desktop `master` starts at `5eb00e8` and has no
-   remote. Harness changes are committed locally as `bdefe56f45` and
-   `4952bebc28`, with recovery source pins in [patches/](patches/README.md).
-   No fork has been created and nothing has been pushed.
+4. **No separate Harness fork or binary release:** desktop source/history and
+   the complete Harness recovery patch are now publicly backed up. Harness
+   commits `bdefe56f45` and `4952bebc28` still exist only in the local Harness
+   repository; use the public [patches/](patches/README.md) plus the upstream
+   base to recover their source. Do not claim those commit ids are published
+   upstream, or that installers are available as a GitHub Release.
 
 5. **Security coverage remains bounded:** the earlier 12 build-dependency
    findings are resolved in the 26.15.3 toolchain; both audit commands now
@@ -329,27 +349,30 @@ keeping:
   server activates after the LLM adapters. The same ordering trap applies to
   `ctx.modelDirectories` in `StatsLine`.
 
-**External backup remains:** choose the GitHub owner and visibility before
-creating a harness fork and desktop repository, then push the local commits.
-Do not push the desktop branch to the official upstream remote. Local source
-recovery and dependency locking work without a published fork, but are not an
-off-machine backup. See [build verification](docs/reproducible-build.md).
+**External source backup is complete:** the desktop repository and this patch
+are published at the GitHub URL above. Recovery from the downloaded patch was
+verified against the pinned upstream base. A separate Harness fork is optional
+future work and was not created by this publication. Do not push the desktop
+branch to the official Harness remote. See
+[publication verification](docs/publication-2026-08-27.md) and
+[build verification](docs/reproducible-build.md).
 
 ---
 
 ## 6. Suggested backlog
 
-1. Choose remote ownership/visibility and push the local commits (§5).
-   Source commits, clean builds, packaging and headless artifact checks are
-   complete locally.
+1. Verify installer and portable entrypoints before a full release (§2.1),
+   including portable pinning/close/relaunch (§2.2). The originally reported
+   taskbar bug remains closed; actual desktop interactions belong to the user.
 2. Repeat `npm run audit:build` and `npm run audit:runtime` before release;
    the earlier findings are fixed, not a standing permission to force-update
    dependencies (§2.5). Use a new version/output for the next release.
-3. Verify installer and portable entrypoints before a full release (§2.1).
-4. Verify portable-launcher pinning/close/relaunch as part of distribution
-   entrypoint acceptance (§2.2); the originally reported taskbar bug is closed.
-5. Consider a CI workflow. Note it would need the harness fork, a large-heap
-   build, and the current separate resource-editing/signing configuration.
+3. Publish installer/portable binaries only as a separately authorized release;
+   this source publication did not upload the local executables (§2.4).
+4. Code signing and fresh-machine validation remain separate release work.
+5. Consider a CI workflow. It can recover Harness from the pinned upstream
+   base plus the public patch; it needs a large-heap build and the current
+   separate resource-editing/signing configuration, not necessarily a fork.
 6. Version pinning: `runtime-lock/package.json` pins `0.1.1-rc.2`, with the
    transitive graph in `runtime-lock/pnpm-lock.yaml`. The harness is a fast-moving developer preview that states it
    will make breaking changes; the overlay assumes the registry copy has the

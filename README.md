@@ -22,7 +22,11 @@ cost estimate is calculated and why it is an estimate.
 
 ## Install
 
-Download a release and run it:
+This repository currently publishes source and history only. Windows packages
+have been built and checked locally, but no GitHub Release binaries have been
+uploaded yet. See [publication status](docs/publication-2026-08-27.md).
+
+The supported Windows package formats are:
 
 - `DSH-Desktop-Setup-<version>-x64.exe` — installer (per-user, no admin rights,
   lets you choose the install directory)
@@ -52,7 +56,7 @@ of the patched harness. Exact source pins, recovery commands, tested tool
 versions and verification limits are in [the build guide](docs/reproducible-build.md).
 
 ```bash
-git clone <this repo>
+git clone https://github.com/yangshulin2333/dsh-desktop.git
 cd dsh-desktop
 npm ci
 ```
