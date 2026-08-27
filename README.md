@@ -81,21 +81,48 @@ npm test         # build-input checks, headless picker and keyless backend start
 npm run dist     # installer + portable exe into dist/
 ```
 
-For the 0.1.2 taskbar fix, use an isolated output and check the actual EXE:
+For validation builds, use a fresh output and check the actual EXE. Do not
+overwrite the already accepted `dist/0.1.2/` files:
 
-```bash
-npm run dist -- --config.directories.output=dist/0.1.2
-npm run test:artifact
+```powershell
+if (Test-Path -LiteralPath 'dist/toolchain-check') { throw 'Choose a fresh output directory' }
+npm run dist:dir -- --config.directories.output=dist/toolchain-check
+if ($LASTEXITCODE -ne 0) { throw 'Unpacked build failed' }
+$dshPreviousTestExe = $env:DSH_TEST_EXECUTABLE
+try {
+  $env:DSH_TEST_EXECUTABLE = (Resolve-Path 'dist/toolchain-check/win-unpacked/DSH Desktop.exe').Path
+  npm run test:artifact
+  if ($LASTEXITCODE -ne 0) { throw 'EXE checks failed' }
+} finally {
+  $env:DSH_TEST_EXECUTABLE = $dshPreviousTestExe
+}
 ```
 
 `test:artifact` defaults to `dist/<package-version>/win-unpacked/DSH Desktop.exe`;
 `DSH_TEST_EXECUTABLE` can select a different artifact. It checks the embedded
 name, every icon frame and ASAR integrity without opening a window.
+Also test the packaged backend before creating installers with
+`--prepackaged`; the complete sequence, with temporary test-environment
+restoration, is in the [toolchain record](docs/toolchain-hardening-2026-08-27.md).
 
 When upgrading from 0.1.1, manually unpin the old **Electron** entry, fully
 exit the old app, open the new version and pin it again. The old shortcut
 still points to the old EXE; it is not migrated automatically. See the
 [0.1.2 taskbar validation record](docs/validation-0.1.2.md).
+
+### Dependency checks
+
+```bash
+npm run audit:build     # desktop build dependencies; requires network
+npm run audit:runtime   # production dependencies in an already staged runtime/
+```
+
+The current toolchain pins electron-builder 26.15.3 and keeps Electron
+42.10.1. On 2026-08-27, build audit findings dropped from 12 to 0 and the
+runtime audit reported 0. This is a point-in-time dependency check, not a
+complete security assessment. The [validation record](docs/toolchain-hardening-2026-08-27.md)
+covers compatibility, package hashes and rollback. The accepted 0.1.2 files
+were retained unchanged; this toolchain maintenance does not require reinstalling.
 
 ## How it works
 
@@ -119,6 +146,11 @@ collides with a harness you are already running from a terminal.
 
 ### Notes for anyone hacking on this
 
+- **Keep the runtime resource-copy boundary.** Builder 26 skips a FileSet's
+  root `node_modules`. `extraResources` therefore uses `from: "."`, `to: "."`
+  and the narrow `runtime/**/*` include plus source/test exclusions. Reverting
+  it to `from: "runtime"` produces an EXE with correct branding but no backend
+  dependencies. The real-copier regression test in `npm test` protects this.
 - **Electron 42+ is required.** The harness needs Node `^22.19.0 || >=24`;
   Electron 33 bundles Node 20 and fails on `node:zlib`'s `createZstdDecompress`.
 - **The backend is spawned with `--expose-internals`.** The CLI always mounts
@@ -139,10 +171,11 @@ collides with a harness you are already running from a terminal.
 
 ### Why `win.signAndEditExecutable` is `false`
 
-Builds here are unsigned — there is no certificate — and electron-builder's
-final log line confirms it skips signing the installer anyway
-(`no signing info identified, signing is skipped`). But it signs **every
-`.exe` it finds inside the package** before reaching that point:
+Builds here are unsigned — there is no certificate. The following trap was
+observed with the original electron-builder 25.1.8. Its final log line
+confirmed it skipped signing the installer anyway
+(`no signing info identified, signing is skipped`). But it attempted to sign
+**every `.exe` it found inside the package** before reaching that point:
 `shouldSignFile` hard-codes `.exe`, with no option to exclude one, and the
 staged runtime carries third-party binaries (`node-pty`'s `OpenConsole.exe`,
 ripgrep's `rg.exe`). Reaching for signtool makes it download its `winCodeSign`
@@ -181,6 +214,11 @@ The packaged window also sets matching taskbar relaunch details. Portable
 builds use `PORTABLE_EXECUTABLE_FILE`, not the temporary extracted executable
 that the portable launcher removes on exit. Actual pin/unpin and relaunch
 behavior remains a user acceptance check, separate from background tests.
+
+The 26.15.3 toolchain keeps this tested resource-editing setup. It has newer
+signing options, but migrating those is not needed for the dependency repair.
+Windows signature inspection confirms the validation artifacts remain unsigned;
+a log line mentioning signing does not establish that a certificate was used.
 
 ## License
 

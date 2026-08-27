@@ -8,9 +8,11 @@
   "main": "main.js",
   "scripts": {
     "postinstall": "node node_modules/electron/install.js",
-    "test": "node --test tests/runtime-staging.test.mjs tests/picker-runtime.test.cjs tests/runtime-startup.test.cjs tests/windows-branding.test.cjs tests/taskbar-identity.test.cjs",
-    "test:build": "node --test tests/runtime-staging.test.mjs tests/windows-branding.test.cjs tests/taskbar-identity.test.cjs",
+    "test": "node --test tests/runtime-staging.test.mjs tests/runtime-packaging.test.cjs tests/picker-runtime.test.cjs tests/runtime-startup.test.cjs tests/windows-branding.test.cjs tests/taskbar-identity.test.cjs",
+    "test:build": "node --test tests/runtime-staging.test.mjs tests/runtime-packaging.test.cjs tests/windows-branding.test.cjs tests/taskbar-identity.test.cjs",
     "test:artifact": "node --test tests/windows-artifact.test.cjs",
+    "audit:build": "npm audit --audit-level=high",
+    "audit:runtime": "pnpm --dir runtime audit --prod --audit-level=high",
     "test:startup": "node --test tests/runtime-startup.test.cjs",
     "build:runtime": "node scripts/build-runtime.mjs",
     "test:picker": "node --test tests/picker-runtime.test.cjs",
@@ -20,7 +22,7 @@
   },
   "devDependencies": {
     "electron": "^42.10.1",
-    "electron-builder": "^25.1.8",
+    "electron-builder": "26.15.3",
     "resedit": "1.7.2"
   },
   "build": {
@@ -42,10 +44,10 @@
     ],
     "extraResources": [
       {
-        "from": "runtime",
-        "to": "runtime",
+        "from": ".",
+        "to": ".",
         "filter": [
-          "**/*",
+          "runtime/**/*",
           "!**/*.map",
           "!**/*.ts",
           "!**/*.md",

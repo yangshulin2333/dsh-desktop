@@ -5,7 +5,19 @@ still open, and the traps that cost the most time the first time round.
 
 Written 2026-08-27.
 
-Latest update: **0.1.2 taskbar issue accepted by the user on 2026-08-27.**
+Latest update: **build-toolchain audit remediation validated on 2026-08-27.**
+The pinned electron-builder is now 26.15.3. Build audit findings dropped from
+12 to 0; the production runtime audit also reports 0 at this check. An isolated
+clone passed 18 distinct automated checks and both Windows package targets.
+Builder 26 exposed a runtime-copy regression; a narrow FileSet adjustment and
+a real-copier regression test now protect the backend/native dependencies.
+The accepted `dist/0.1.2/` artifacts and application/runtime code are unchanged;
+no reinstall is needed. New validation-only packages stay under
+`.repro/toolchain-26.15.3/`. See the
+[toolchain validation and rollback record](docs/toolchain-hardening-2026-08-27.md).
+No desktop operations or remote writes were performed.
+
+**0.1.2 taskbar issue accepted by the user on 2026-08-27.**
 The main EXE now embeds the terminal icon and DSH Desktop metadata; the window
 sets explicit relaunch details, including the persistent portable launcher.
 All 17 automated checks pass. Installer/portable payloads match the checked
@@ -53,6 +65,13 @@ original `D:\AI\DeepSeek` directory using the patch in this repository.
 
 ### Working and verified
 
+- **Build-toolchain remediation:** electron-builder 26.15.3 is exactly pinned
+  with its lockfile. Both new audit commands report 0 known findings. Source
+  and packaged tests pass 15/15, actual EXE checks pass 3/3, and both package
+  targets build. All 11,499 runtime files match accepted 0.1.2 byte for byte.
+  Root dependencies were reinstalled and checks rerun after merging the
+  isolated changes; the four accepted artifact hashes still match. This is
+  toolchain validation, not new installer/portable UI acceptance.
 - **0.1.2 EXE branding:** Windows reads `DSH Desktop` / `0.1.2.0`, every embedded
   icon frame matches `build/icon.ico`, and ASAR integrity matches. Packaged
   backend/picker tests pass without opening a window. The user subsequently
@@ -118,10 +137,12 @@ original `D:\AI\DeepSeek` directory using the patch in this repository.
    `4952bebc28`, with recovery source pins in [patches/](patches/README.md).
    No fork has been created and nothing has been pushed.
 
-5. **Dependency audit needs follow-up:** the existing electron-builder 25.1.8
-   toolchain reports 12 npm audit findings (11 high, 1 critical). The staged
-   runtime's production audit reports none in this run. This does not certify
-   the client as secure; assess and upgrade the build toolchain separately.
+5. **Security coverage remains bounded:** the earlier 12 build-dependency
+   findings are resolved in the 26.15.3 toolchain; both audit commands now
+   report 0. Recheck before release. Dependency audits do not fully assess
+   Chromium, native binaries, application permissions or business logic, and
+   some transitive packages still emit deprecation warnings. See the
+   [scope and evidence](docs/toolchain-hardening-2026-08-27.md).
 
 ---
 
@@ -138,11 +159,11 @@ npx electron-builder --win        # -> dist/
 npm start                         # or run from source
 ```
 
-For the isolated 0.1.2 candidate, run `npm test` before
-`npm run dist -- --config.directories.output=dist/0.1.2`, then
-`npm run test:artifact`. Exact packaged-backend test commands are in the
-[0.1.2 record](docs/validation-0.1.2.md).
-Do not overwrite accepted 0.1.1. The staging script requires an absent
+Use a fresh checkout/output for rebuilding. The current complete sequence,
+including audit, `dist:dir`, actual EXE and packaged-backend tests, then
+`--prepackaged` installer/portable creation, is in the
+[toolchain record](docs/toolchain-hardening-2026-08-27.md).
+Do not overwrite accepted 0.1.1 or 0.1.2. The staging script requires an absent
 or empty output; choose a fresh checkout or `--output` path for rebuilds.
 See the [PowerShell build guide](docs/reproducible-build.md) for the complete
 locked-dependency recovery and verification procedure.
@@ -174,6 +195,15 @@ is what makes the overlay addressable.
 ---
 
 ## 4. Traps (each of these cost real time)
+
+**Builder 26 can omit the entire staged `node_modules` with the old FileSet.**
+Its copy filter rejects `node_modules` relative to the FileSet root. Keep
+`extraResources` rooted at `.` with destination `.` and the narrow
+`runtime/**/*` include, plus the existing exclusions. Changing it back to
+`from: runtime` silently drops the backend and native dependencies.
+`tests/runtime-packaging.test.cjs` exercises the actual copier and fails on
+that regression. EXE/icon checks alone passed the broken package; always run
+the backend tests against the final packaged runtime as well.
 
 **Use pnpm, never npm, for the runtime staging.** npm spent >2 minutes without
 even creating `node_modules` for this 500-package tree; pnpm with the local
@@ -212,7 +242,8 @@ breaks the moment a feature reaches for a native binary.
 `node_modules/@koromix/koffi-win32-x64/win32_x64/koffi.node`. The build script
 asserts on that exact path.
 
-**`win.signAndEditExecutable` is `false` on purpose.** electron-builder signs
+**`win.signAndEditExecutable` is `false` on purpose.** The original 25.1.8
+electron-builder flow signs
 every `.exe` inside the package — `shouldSignFile` hard-codes `.exe` with no
 exclusion option — and the staged runtime carries `node-pty`'s `OpenConsole.exe`
 and ripgrep's `rg.exe`. Reaching for signtool downloads the `winCodeSign`
@@ -237,6 +268,10 @@ binaries. `main.js` sets explicit window relaunch details using the same app ID
 as the process and installer; portable pinning refers to the permanent launcher.
 The previous claim that missing EXE resources only affected Explorer was wrong:
 the user's taskbar screenshots and `Electron.lnk` exposed this second effect.
+The 26.15.3 toolchain retains and verifies this separate resource-editing hook;
+its newer signing configuration was not adopted in the same change. Native
+signature inspection still reports `NotSigned`; build log wording is not
+proof that an artifact is signed.
 
 **`pnpm deploy` with a Windows absolute path mirrors empty directories into the
 source tree.** It created `D:\AI\DeepSeek\vendor\DeepSeek-Desktop\`. A stray
@@ -307,7 +342,9 @@ off-machine backup. See [build verification](docs/reproducible-build.md).
 1. Choose remote ownership/visibility and push the local commits (§5).
    Source commits, clean builds, packaging and headless artifact checks are
    complete locally.
-2. Assess and remediate the build-toolchain audit findings before release (§2.5).
+2. Repeat `npm run audit:build` and `npm run audit:runtime` before release;
+   the earlier findings are fixed, not a standing permission to force-update
+   dependencies (§2.5). Use a new version/output for the next release.
 3. Verify installer and portable entrypoints before a full release (§2.1).
 4. Verify portable-launcher pinning/close/relaunch as part of distribution
    entrypoint acceptance (§2.2); the originally reported taskbar bug is closed.

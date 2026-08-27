@@ -1,0 +1,88 @@
+{
+  "date": "2026-08-27",
+  "status": "toolchain-remediation-validated-not-a-new-app-release",
+  "sourceBaseCommit": "a360733d76e1284344ff3c01b35c6f9755902b7a",
+  "validationRecord": "toolchain-hardening-2026-08-27.md",
+  "isolatedCheckout": ".repro/toolchain-26.15.3",
+  "applicationVersionUnchanged": "0.1.2",
+  "environment": { "platform": "win32", "arch": "x64", "node": "24.15.0", "npm": "11.12.1" },
+  "dependencies": {
+    "electron": "42.10.1",
+    "electronBuilderBefore": "25.1.8",
+    "electronBuilderAfter": "26.15.3",
+    "builderSelection": "npm-latest-tag-and-audit-recommendation-at-validation-time",
+    "appBuilderLib": "26.15.3",
+    "builderUtilRuntime": "9.7.0",
+    "electronRebuild": "4.2.0",
+    "nodeGyp": "12.4.0",
+    "tar": "7.5.22",
+    "resedit": "1.7.2",
+    "installedDependencyCount": 283,
+    "lockSha256Before": "c98c014a30853dbde8fe16b56e2b7087ecfac038b1f84a3f815bbe1827050de2",
+    "lockSha256After": "b19c07974b0430dbf8e5c19ceac574b573d961e27eca5aa72adde6d9021e4189"
+  },
+  "audit": {
+    "buildBefore": { "low": 0, "moderate": 0, "high": 11, "critical": 1, "total": 12 },
+    "buildAfter": { "low": 0, "moderate": 0, "high": 0, "critical": 0, "total": 0 },
+    "runtimeProductionAfter": { "low": 0, "moderate": 0, "high": 0, "critical": 0, "total": 0 },
+    "commands": ["npm run audit:build", "npm run audit:runtime"],
+    "scope": "known-dependency-advisories-at-check-time-not-a-complete-security-assessment"
+  },
+  "regression": {
+    "symptom": "builder-26-old-extraResources-omitted-runtime-node_modules",
+    "oldMappingPackagedTests": { "passed": 10, "failed": 4 },
+    "oldMappingArtifactTests": { "passed": 3, "failed": 0 },
+    "copierTestBeforeFix": "failed-missing-backend-entry",
+    "copierTestAfterFix": "passed",
+    "fix": "project-root-relative-runtime-only-whitelist-with-original-exclusions",
+    "test": "../tests/runtime-packaging.test.cjs"
+  },
+  "checks": {
+    "isolatedSourceTests": { "passed": 15, "failed": 0 },
+    "isolatedPackagedTests": { "passed": 15, "failed": 0 },
+    "isolatedArtifactTests": { "passed": 3, "failed": 0 },
+    "rootSourceTestsAfterMerge": { "passed": 15, "failed": 0 },
+    "acceptedArtifactTestsAfterMerge": { "passed": 3, "failed": 0 },
+    "distinctAutomatedTests": 18,
+    "setupAndPortableBuild": "passed",
+    "setupAndPortableMainExeAndAsar": "byte-identical-to-checked-unpacked-files",
+    "setupAndPortableLauncherIconFramesEqualToSource": 7,
+    "runtimeComparedWithAcceptedVersion": "0.1.2",
+    "runtimeFilesByteIdentical": 11499,
+    "mainExeNonResourceSectionsComparedWithAccepted": "byte-identical",
+    "asarMainJsComparedWithSource": "byte-identical",
+    "acceptedArtifactHashesRecheckedUnchanged": 4,
+    "harnessHeadUnchanged": "4952bebc287ac8ff6148316ea0a1deae436b3f1c",
+    "harnessWorktree": "clean",
+    "windowsAuthenticodeStatus": "NotSigned",
+    "desktopAutomationUsed": false,
+    "installerOrPortableLauncherExecuted": false
+  },
+  "artifacts": [
+    {
+      "path": ".repro/toolchain-26.15.3/dist/0.1.2/DSH-Desktop-Setup-0.1.2-x64.exe",
+      "bytes": 132237221,
+      "sha256": "dcea6f2e6495dc615bce155c96f5389a878d92989050c8e1aeaf15dc2b445617"
+    },
+    {
+      "path": ".repro/toolchain-26.15.3/dist/0.1.2/DSH-Desktop-Portable-0.1.2-x64.exe",
+      "bytes": 132004477,
+      "sha256": "10dbff14501a7f0d30212a5c3caf3480a1b980f5ac102a7bca2f74dbd3cfdb32"
+    },
+    {
+      "path": ".repro/toolchain-26.15.3/dist/0.1.2/win-unpacked/DSH Desktop.exe",
+      "sha256": "34415111e458f3170640559ace19dcb7ac338ff0e2d94bcd8ef96e9817ad33fc"
+    },
+    {
+      "path": ".repro/toolchain-26.15.3/dist/0.1.2/win-unpacked/resources/app.asar",
+      "sha256": "c6a2f1562046bfe440544d43caa5d393b732ac9dda127631da151df9b7147eaa"
+    }
+  ],
+  "acceptedReleaseRecordUnchanged": "release-0.1.2.json",
+  "pending": [
+    "remote-owner-and-visibility-before-repository-creation-or-push",
+    "installer-and-portable-entrypoint-user-acceptance",
+    "fresh-windows-machine-validation",
+    "code-signing"
+  ]
+}
