@@ -1,0 +1,767 @@
+diff --git a/.agents/notes/implemented/feature/2026-09-13-community-windows-installer.i18n.yaml b/.agents/notes/implemented/feature/2026-09-13-community-windows-installer.i18n.yaml
+new file mode 100644
+index 0000000..15bcfe5
+--- /dev/null
++++ b/.agents/notes/implemented/feature/2026-09-13-community-windows-installer.i18n.yaml
+@@ -0,0 +1,6 @@
++# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
++# side as of the last confirmed-consistent state. Both languages carry equal authority;
++# after editing either side, bring the other along and re-record with:
++#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-community-windows-installer.md
++2026-09-13-community-windows-installer.md: a8779a5546ef1cad65efa3a5a6341eec2311de29
++2026-09-13-community-windows-installer.zh.md: 2cd2114c9390ef7bff32c5b5181334755e3cb79f
+diff --git a/.agents/notes/implemented/feature/2026-09-13-community-windows-installer.md b/.agents/notes/implemented/feature/2026-09-13-community-windows-installer.md
+new file mode 100644
+index 0000000..a8779a5
+--- /dev/null
++++ b/.agents/notes/implemented/feature/2026-09-13-community-windows-installer.md
+@@ -0,0 +1,27 @@
++# Agent Note: Community Windows installer and account usage
++
++Status: implemented
++
++English | [中文](2026-09-13-community-windows-installer.zh.md)
++
++## Problem
++
++The community distribution needs installation without a separately installed Node.js or pnpm, plus visible request estimates and account balance. The previous portable distribution suffered shared extraction cleanup and a crashing Windows directory dialog.
++
++## Decision
++
++Keep the official desktop host, offline seed, transaction manager, and single-instance lifecycle at upstream commit fb2c4b9e698e30edb738bca4cf0618587db7d203. A separate community electron-builder configuration produces a per-user one-click NSIS installer with the bundled Node.js and pnpm. It has its own identity and default data directory, no official update feed, and no claimed official signature.
++
++Compose the existing browse directory picker in the desktop profile. Hide Node-spawned command windows without changing restricted-token CreateProcess flags. Packaging accepts either a JavaScript or executable pnpm entry.
++
++The LLM remote reads the saved provider account through its adapter. Only the official DeepSeek origin is accepted; redirects and raw error bodies are not exposed. The client queries on demand. Missing or failed balances are unavailable, never zero.
++
++Turn accounting optionally retains original attempts and launch timestamps. The chat estimates CNY with the September 12, 2026 price snapshot, original model, cache buckets, and peak window. Unsupported or incomplete accounting has no price. Estimates are not invoice deductions.
++
++## Alternatives considered
++
++Continuing the old temporary portable shell leaves extraction lifetime coupled to runtime files. Replacing the entire official UI increases maintenance scope. Inferring each request charge from account balance differences misattributes concurrent account activity. Reusing the official updater can overwrite community features.
++
++## Consequences
++
++The source changes preserve the upstream runtime composition while adding a small billing surface. Distribution updates are manual. A packaged-runtime smoke test installs offline with a fresh DSH_HOME and no Node on PATH, boots the real host, loads HTML, and checks a second launch. Windows 10 hardware, real paid requests, and a live user's account balance remain separate acceptance checks.
+diff --git a/.agents/notes/implemented/feature/2026-09-13-community-windows-installer.zh.md b/.agents/notes/implemented/feature/2026-09-13-community-windows-installer.zh.md
+new file mode 100644
+index 0000000..2cd2114
+--- /dev/null
++++ b/.agents/notes/implemented/feature/2026-09-13-community-windows-installer.zh.md
+@@ -0,0 +1,27 @@
++# Agent Note: 社区 Windows 安装包与账户用量
++
++Status: implemented
++
++[English](2026-09-13-community-windows-installer.md) | 中文
++
++## Problem
++
++社区发行版需要无需另装 Node.js 或 pnpm 即可安装，并显示请求费用估算和账户余额。此前便携发行版存在共用解压目录被清理、Windows 文件夹对话框崩溃的问题。
++
++## Decision
++
++保留上游提交 fb2c4b9e698e30edb738bca4cf0618587db7d203 的官方桌面后端、离线种子、事务管理和单实例生命周期。独立的社区 electron-builder 配置生成当前用户的一键 NSIS 安装包，内置 Node.js 和 pnpm。社区版有独立标识和默认数据目录，不连接官方更新源，也不声称具有官方签名。
++
++桌面配置组合现有的应用内目录浏览组件。隐藏 Node 拉起的命令窗口，但不修改受限令牌的 CreateProcess 标志。打包脚本同时接受 JavaScript 和可执行文件形式的 pnpm 入口。
++
++LLM 远程接口通过适配器查询已保存的提供方账户。只接受 DeepSeek 官方域名，不跟随重定向，不暴露原始错误正文。客户端按需查询。余额缺失或查询失败时显示不可用，不显示为零。
++
++轮次统计可选保留原始请求及启动时间。聊天界面根据 2026 年 9 月 12 日价格快照、原模型、缓存计数和高峰时段估算人民币费用。统计不完整或模型不受支持时不生成价格。估算金额不等于账单扣款。
++
++## Alternatives considered
++
++继续使用原来的临时便携外壳，会让解压目录生命周期继续影响运行时文件。替换整个官方界面会扩大维护范围。用账户余额差额推断单次费用会错误归属同账户的并发使用。复用官方更新器可能覆盖社区功能。
++
++## Consequences
++
++这些源码修改保留上游运行时组合，仅增加小范围计费显示。发行版需要手动更新。打包运行时冒烟测试使用全新 DSH_HOME 和不含 Node 的 PATH 完成离线安装、启动真实后端、加载 HTML，并检查第二次启动。Windows 10 实机、真实付费请求和用户实际账户余额仍需分别验收。
+diff --git a/apps/desktop-host/config/desktop.cordis.patch.yml b/apps/desktop-host/config/desktop.cordis.patch.yml
+index 92f4df6..82b1057 100644
+--- a/apps/desktop-host/config/desktop.cordis.patch.yml
++++ b/apps/desktop-host/config/desktop.cordis.patch.yml
+@@ -27,8 +27,8 @@
+   config: {}
+ 
+ - insert:
+-    - id: directory-picker-native
+-      name: '@deepseek-ai/dsh-host-directory-picker-native'
++    - id: directory-picker-browse
++      name: '@deepseek-ai/dsh-host-directory-picker-browse'
+ 
+-    - id: ui-directory-picker-native
+-      name: '@deepseek-ai/dsh-client-ui-directory-picker-native'
++    - id: ui-directory-picker-browse
++      name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
+diff --git a/apps/desktop-host/package.json b/apps/desktop-host/package.json
+index 83b1ed2..ce1b73b 100644
+--- a/apps/desktop-host/package.json
++++ b/apps/desktop-host/package.json
+@@ -18,9 +18,9 @@
+     "@deepseek-ai/dsh-app-boot": "workspace:^",
+     "@deepseek-ai/dsh-client-connection": "workspace:^",
+     "@deepseek-ai/dsh-client-modules": "workspace:^",
+-    "@deepseek-ai/dsh-client-ui-directory-picker-native": "workspace:^",
++    "@deepseek-ai/dsh-client-ui-directory-picker-browse": "workspace:^",
+     "@deepseek-ai/dsh-cmdline": "workspace:^",
+-    "@deepseek-ai/dsh-host-directory-picker-native": "workspace:^",
++    "@deepseek-ai/dsh-host-directory-picker-browse": "workspace:^",
+     "@deepseek-ai/dsh-host-webserver": "workspace:^",
+     "@deepseek-ai/dsh-launch-environment": "workspace:^",
+     "@deepseek-ai/dsh-web-frontend": "workspace:^"
+diff --git a/apps/desktop/electron-builder.community.mjs b/apps/desktop/electron-builder.community.mjs
+new file mode 100644
+index 0000000..7873692
+--- /dev/null
++++ b/apps/desktop/electron-builder.community.mjs
+@@ -0,0 +1,24 @@
++import { desktopTargetBuildPaths } from './scripts/desktop-build-paths.mjs'
++
++// Community distribution: no official signing identity or updater channel.
++const paths = desktopTargetBuildPaths('win-x64')
++export default {
++  appId: 'io.github.yangshulin2333.dsh-desktop-community',
++  productName: 'DSH Desktop Community',
++  artifactName: 'DSH-Desktop-Community-${version}-Setup-${arch}.${ext}',
++  directories: { output: paths.artifacts },
++  asar: true,
++  files: ['lib/*.js', 'lib/*.cjs', 'renderer/**/*', 'package.json'],
++  extraResources: [
++    { from: paths.runtime, to: 'runtime' },
++    { from: paths.seed, to: 'seed' },
++  ],
++  win: { forceCodeSigning: false, target: ['nsis'] },
++  nsis: {
++    oneClick: true,
++    perMachine: false,
++    createDesktopShortcut: true,
++    differentialPackage: false,
++  },
++  publish: null,
++}
+diff --git a/apps/desktop/scripts/package-target.ts b/apps/desktop/scripts/package-target.ts
+index 6485515..9d50e29 100644
+--- a/apps/desktop/scripts/package-target.ts
++++ b/apps/desktop/scripts/package-target.ts
+@@ -222,10 +222,12 @@ function runPnpm(
+     throw new Error('desktop package: invoke this script through a pnpm package command')
+   }
+   return new Promise((resolvePromise, reject) => {
+-    const child = spawn(process.execPath, [pnpmEntry, ...args], {
++    const executable = pnpmEntry.toLowerCase().endsWith('.exe')
++    const child = spawn(executable ? pnpmEntry : process.execPath, executable ? [...args] : [pnpmEntry, ...args], {
+       cwd,
+       env,
+       stdio: 'inherit',
++      windowsHide: process.platform === 'win32',
+     })
+     child.once('error', reject)
+     child.once('close', (code, signal) => {
+diff --git a/apps/desktop/src/host-process.ts b/apps/desktop/src/host-process.ts
+index ed18d0c..6bb88ab 100644
+--- a/apps/desktop/src/host-process.ts
++++ b/apps/desktop/src/host-process.ts
+@@ -105,7 +105,8 @@ export class DesktopHostProcess {
+       this.projectDir,
+       ...(this.inspectPort === undefined ? [] : ['--allow-linked-profile']),
+     ], {
+-      cwd: this.projectDir,
++      windowsHide: process.platform === 'win32',
++        cwd: this.projectDir,
+       env: Object.fromEntries(Object.entries(process.env).filter(([name]) => (
+         name !== 'NODE_OPTIONS' && !/^DSH_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
+       ))),
+diff --git a/apps/desktop/src/main.ts b/apps/desktop/src/main.ts
+index 8bc9fdc..f30755e 100644
+--- a/apps/desktop/src/main.ts
++++ b/apps/desktop/src/main.ts
+@@ -131,6 +131,8 @@ async function serveShellAsset(request: Request): Promise<Response> {
+ }
+ 
+ async function main(): Promise<void> {
++  // Keep this community build's managed profile separate from an official install.
++  process.env.DSH_HOME ??= join(app.getPath('userData'), 'harness-home')
+   const resources = runtimeResources()
+   const paths = resolveDesktopPaths()
+   const development = developmentProject()
+@@ -383,6 +385,8 @@ async function main(): Promise<void> {
+   })
+ }
+ 
++app.setName('DSH Desktop Community')
++app.setPath('userData', join(app.getPath('appData'), 'DSH Desktop Community'))
+ const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimaryWindow() })
+ 
+ if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unknown) => {
+diff --git a/apps/desktop/src/project-manager.ts b/apps/desktop/src/project-manager.ts
+index b9b94f7..43364e4 100644
+--- a/apps/desktop/src/project-manager.ts
++++ b/apps/desktop/src/project-manager.ts
+@@ -570,6 +570,7 @@ export class DesktopProjectManager {
+         command,
+         ...commandArgs,
+       ], {
++        windowsHide: process.platform === 'win32',
+         cwd: projectDir,
+         env: {
+           ...inherited,
+diff --git a/packages/client/ui-chat/src/client/chat/TurnUsagePanel.tsx b/packages/client/ui-chat/src/client/chat/TurnUsagePanel.tsx
+index 0d64ff9..2d709dd 100644
+--- a/packages/client/ui-chat/src/client/chat/TurnUsagePanel.tsx
++++ b/packages/client/ui-chat/src/client/chat/TurnUsagePanel.tsx
+@@ -1,3 +1,4 @@
++import { Fragment } from 'react'
+ // Icon-row Turn-stat actions: a database pill labelled with the turn total
+ // click-opens the per-Turn usage dialog, and a clock pill labelled with the
+ // turn wall time click-opens the Turn-time dialog. Both sit right of the
+@@ -10,6 +11,7 @@ import type { ChatViewSlotProps } from '../contract/slots.ts'
+ import { formatLatencySeconds, formatRunDuration, formatTokensPerSecond } from './message-chrome.ts'
+ import { formatCacheHitPercent, formatExactTokens, formatTokens } from './token-format.ts'
+ import { MEASURE_STYLE, useStatDialog } from './stat-dialog.ts'
++import { estimateRequestCosts } from './request-cost.ts'
+ import css from './TurnUsagePanel.module.css'
+ import dialogCss from './stat-dialog.module.css'
+ 
+@@ -44,6 +46,7 @@ function formatExactCount(value: number, t: ChatViewSlotProps['t']): string {
+  * @returns The trigger and, while open, its portaled dialog anchored above the trigger.
+  */
+ export function TurnUsagePanel({ usage, t }: TurnUsagePanelProps) {
++  const cost = estimateRequestCosts(usage.attempts)
+   const { open, setOpen, rootRef, panelRef, pos } = useStatDialog()
+ 
+   const cacheHit = usage.cacheReadTokens === undefined
+@@ -62,7 +65,7 @@ export function TurnUsagePanel({ usage, t }: TurnUsagePanelProps) {
+         onClick={() => { setOpen(!open) }}
+       >
+         <IconDatabaseOutline16 />
+-        <span className={css.label}>{t('message.turnUsage.consumed', { total })}</span>
++        <span className={css.label}>{t('message.turnUsage.consumed', { total })}{cost !== undefined && ` · ${t('message.cost.estimate')} ¥${cost.total.toFixed(4)}`}</span>
+       </button>
+       {open && createPortal(
+         <div
+@@ -80,7 +83,10 @@ export function TurnUsagePanel({ usage, t }: TurnUsagePanelProps) {
+             <span className={dialogCss.titleValue}>{formatExactCount(usage.totalTokens, t)}</span>
+           </div>
+           <div className={dialogCss.titleRule} aria-hidden />
++          <p>{t('message.cost.notice')}</p>
+           <dl className={dialogCss.details} data-turn-usage-details>
++            <dt>{t('message.cost.estimate')}</dt><dd>{cost === undefined ? t('message.cost.unavailable') : '¥' + cost.total.toFixed(4)}</dd>
++            {cost?.requests.map((amount, index) => <Fragment key={index}><dt>{t('message.cost.request')} {index + 1}</dt><dd>¥{amount.toFixed(4)}</dd></Fragment>)}
+             {routes !== '' && (
+               <>
+                 <dt>{t('message.turnUsage.model')}</dt>
+diff --git a/packages/client/ui-chat/src/client/chat/request-cost.ts b/packages/client/ui-chat/src/client/chat/request-cost.ts
+new file mode 100644
+index 0000000..b36d786
+--- /dev/null
++++ b/packages/client/ui-chat/src/client/chat/request-cost.ts
+@@ -0,0 +1,37 @@
++/** One recorded provider attempt, retaining its original model and launch time. */
++export interface CostAttempt {
++  readonly startedAt: number
++  readonly inputTokens: number
++  readonly outputTokens: number
++  readonly totalTokens: number
++  readonly cacheReadTokens?: number
++  readonly cacheWriteTokens?: number
++  readonly route?: { readonly provider: string; readonly model: string }
++}
++
++/**
++ * Estimate CNY using the official 2026-09-12 price table, not account deductions.
++ * @param attempts - Original per-attempt samples; missing attribution is not guessed.
++ * @returns Per-request estimates and their sum, or undefined for incomplete/unsupported billing.
++ */
++export function estimateRequestCosts(attempts: readonly CostAttempt[] | undefined): { total: number; requests: number[] } | undefined {
++  if (attempts === undefined || attempts.length === 0) return undefined
++  const requests: number[] = []
++  for (const sample of attempts) {
++    const route = sample.route
++    if (route?.provider !== 'deepseek-official' || sample.cacheReadTokens === undefined
++      || (sample.cacheWriteTokens ?? 0) !== 0) return undefined
++    const rates = route.model === 'deepseek-v4-pro' ? [4.5, 0.15, 13.5]
++      : ['deepseek-flash', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'].includes(route.model) ? [1, 0.02, 4] : undefined
++    if (rates === undefined) return undefined
++    const counts = [sample.inputTokens, sample.cacheReadTokens, sample.outputTokens]
++    if (counts.some(value => !Number.isSafeInteger(value) || value < 0)
++      || counts.reduce((a, b) => a + b, 0) !== sample.totalTokens) return undefined
++    const time = new Date(sample.startedAt)
++    if (!Number.isFinite(time.getTime())) return undefined
++    const hour = time.getUTCHours(), day = time.getUTCDay()
++    const peak = day >= 1 && day <= 5 && ((hour >= 1 && hour < 4) || (hour >= 6 && hour < 10))
++    requests.push(counts.reduce((sum, count, index) => sum + count * (rates[index] ?? 0), 0) / 1e6 * (peak ? 2 : 1))
++  }
++  return { total: requests.reduce((a, b) => a + b, 0), requests }
++}
+diff --git a/packages/client/ui-chat/src/client/contract/chat-nodes.ts b/packages/client/ui-chat/src/client/contract/chat-nodes.ts
+index d04bdfd..46bd597 100644
+--- a/packages/client/ui-chat/src/client/contract/chat-nodes.ts
++++ b/packages/client/ui-chat/src/client/contract/chat-nodes.ts
+@@ -67,6 +67,7 @@ export interface TurnTokenUsageRoute {
+ 
+ /** Exact provider-reported token accounting for every attempt in one completed Turn. */
+ export interface TurnTokenUsage {
++  readonly attempts?: readonly import('../chat/request-cost.ts').CostAttempt[]
+   /** Sum of uncached prompt input across all attempts. */
+   readonly uncachedInputTokens: number
+   readonly outputTokens: number
+diff --git a/packages/client/ui-chat/src/client/conversation-nodes/turn-tail.ts b/packages/client/ui-chat/src/client/conversation-nodes/turn-tail.ts
+index 3206b1c..2114f21 100644
+--- a/packages/client/ui-chat/src/client/conversation-nodes/turn-tail.ts
++++ b/packages/client/ui-chat/src/client/conversation-nodes/turn-tail.ts
+@@ -148,7 +148,7 @@ function tailData(context: ConversationNodeContext<TurnTailState>): TurnTailChat
+   }
+   const metrics = deriveTurnMetrics(finalized.map(candidate => candidate.finalNode)).get(end.event.data.turn)
+   const tokenUsage = context.start?.event.type === 'turn/start'
+-    ? deriveTurnTokenUsage(context.matches.map(match => match.event).filter(isSessionEvent))
++    ? deriveTurnTokenUsage(context.matches.map(match => match.event).filter(isSessionEvent), true)
+     : undefined
+   return {
+     turn: end.event.data.turn,
+diff --git a/packages/client/ui-chat/src/client/locale.ts b/packages/client/ui-chat/src/client/locale.ts
+index fcae47b..bf82ac2 100644
+--- a/packages/client/ui-chat/src/client/locale.ts
++++ b/packages/client/ui-chat/src/client/locale.ts
+@@ -85,6 +85,7 @@ export const zh = {
+   'message.tokensPerSecond': '{tps} tok/s',
+   'message.turnUsage.title': '本轮用量',
+   'message.turnUsage.consumed': '用量 {total}',
++  'message.cost.estimate': '估算费用', 'message.cost.unavailable': '无法估算', 'message.cost.request': '请求', 'message.cost.notice': '按 2026-09-12 官方人民币价格、请求开始时段及原模型估算；实际扣费以账户账单为准。',
+   'message.turnUsage.model': '提供方 / 模型',
+   'message.turnUsage.cacheHit': '缓存命中',
+   'message.turnUsage.input': '未缓存输入',
+@@ -195,6 +196,7 @@ export const en = {
+   'message.tokensPerSecond': '{tps} tok/s',
+   'message.turnUsage.title': 'Turn usage',
+   'message.turnUsage.consumed': 'Usage {total}',
++  'message.cost.estimate': 'Estimated cost', 'message.cost.unavailable': 'Unavailable', 'message.cost.request': 'Request', 'message.cost.notice': 'Estimate at official CNY prices dated 2026-09-12 using the original model and request start time. Actual billing may differ.',
+   'message.turnUsage.model': 'Provider / model',
+   'message.turnUsage.cacheHit': 'Cache hit',
+   'message.turnUsage.input': 'Uncached input',
+diff --git a/packages/client/ui-chat/tests/request-cost.client.spec.ts b/packages/client/ui-chat/tests/request-cost.client.spec.ts
+new file mode 100644
+index 0000000..5108d31
+--- /dev/null
++++ b/packages/client/ui-chat/tests/request-cost.client.spec.ts
+@@ -0,0 +1,19 @@
++import { describe, expect, it } from 'vitest'
++import { estimateRequestCosts, type CostAttempt } from '../src/client/chat/request-cost.ts'
++const sample: CostAttempt = { startedAt: Date.parse('2026-09-12T02:00:00Z'), inputTokens: 1000000, cacheReadTokens: 1000000, cacheWriteTokens: 0, outputTokens: 1000000, totalTokens: 3000000, route: { provider: 'deepseek-official', model: 'deepseek-flash' } }
++describe('per-request CNY estimates', () => {
++  it('prices Saturday as off-peak and weekday peak at twice the rate', () => {
++    expect(estimateRequestCosts([sample])?.total).toBeCloseTo(5.02)
++    expect(estimateRequestCosts([{ ...sample, startedAt: Date.parse('2026-09-11T02:00:00Z') }])?.total).toBeCloseTo(10.04)
++  })
++  it('uses each original model rather than the currently selected one', () => {
++    const result = estimateRequestCosts([sample, { ...sample, route: { provider: 'deepseek-official', model: 'deepseek-v4-pro' } }])
++    expect(result?.requests).toEqual([5.02, 18.15])
++    expect(result?.total).toBeCloseTo(23.17)
++  })
++  it('does not invent prices for unsupported or incomplete requests', () => {
++    expect(estimateRequestCosts([{ ...sample, route: { provider: 'other', model: 'deepseek-flash' } }])).toBeUndefined()
++    expect(estimateRequestCosts([{ ...sample, totalTokens: 1 }])).toBeUndefined()
++    expect(estimateRequestCosts(undefined)).toBeUndefined()
++  })
++})
+diff --git a/packages/client/ui-settings-models/src/client/AccountBalance.tsx b/packages/client/ui-settings-models/src/client/AccountBalance.tsx
+new file mode 100644
+index 0000000..718e94f
+--- /dev/null
++++ b/packages/client/ui-settings-models/src/client/AccountBalance.tsx
+@@ -0,0 +1,33 @@
++import { useRef, useState, useEffect } from 'react'
++import type { ProviderEditorProps } from './ProviderEditor.tsx'
++import styles from './ModelsSection.module.css'
++
++/** Display only the saved account balance; unsaved key edits are never sent. */
++export function AccountBalance({ operations, provider, t }: Pick<ProviderEditorProps, 'operations' | 'provider' | 't'>) {
++  const [text, setText] = useState('')
++  const [busy, setBusy] = useState(false)
++  const [failed, setFailed] = useState(false)
++  const generation = useRef(0)
++  useEffect(() => () => { generation.current += 1 }, [])
++  const refresh = async () => {
++    const current = ++generation.current
++    setBusy(true)
++    setText('')
++    setFailed(false)
++    try {
++      const rows = await operations.readAccountBalance?.(provider)
++      if (current !== generation.current) return
++      if (rows === undefined) throw new Error('Unsupported host')
++      setText(rows.map(row => `${row.currency} ${row.total}`).join(' · '))
++    } catch {
++      if (current === generation.current) setFailed(true)
++    } finally {
++      if (current === generation.current) setBusy(false)
++    }
++  }
++  return <section aria-label={t('accountBalance')}>
++    <p>{t('accountBalance')}: <span role="status">{failed ? t('balanceFailed') : text || t('balanceNotQueried')}</span></p>
++    <button className={styles['secondaryButton']} type="button" disabled={busy} onClick={() => { void refresh() }}>{busy ? t('balanceLoading') : t('balanceRefresh')}</button>
++    <p>{t('balanceSavedKey')}</p>
++  </section>
++}
+diff --git a/packages/client/ui-settings-models/src/client/ProviderEditor.tsx b/packages/client/ui-settings-models/src/client/ProviderEditor.tsx
+index ffa8c2e..10da463 100644
+--- a/packages/client/ui-settings-models/src/client/ProviderEditor.tsx
++++ b/packages/client/ui-settings-models/src/client/ProviderEditor.tsx
+@@ -31,6 +31,7 @@ import {
+   DeepSeekModelsEditor, modelDrafts, validateDeepSeekModels,
+ } from './DeepSeekModelsEditor.tsx'
+ import { apiKeyFailure } from './apiKey.ts'
++import { AccountBalance } from './AccountBalance.tsx'
+ import { EditorFooter } from './EditorFooter.tsx'
+ import { ModelListEditor } from './ModelListEditor.tsx'
+ import { deriveKeyRef, protocolChoices } from './store.ts'
+@@ -498,6 +499,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
+             {`${t('model')} ${String(modelFailure.index + 1)}: ${t(modelFailure.key)}`}
+           </p>
+         )}
++      {layout === 'deepseek' && <AccountBalance operations={operations} provider={props.provider} t={t} />}
+       <EditorFooter
+         t={t}
+         busy={busy}
+diff --git a/packages/client/ui-settings-models/src/client/locales.ts b/packages/client/ui-settings-models/src/client/locales.ts
+index 3a31904..659fe83 100644
+--- a/packages/client/ui-settings-models/src/client/locales.ts
++++ b/packages/client/ui-settings-models/src/client/locales.ts
+@@ -2,6 +2,7 @@
+ 
+ /** English strings (the key-set source of truth for this pair). */
+ export const en = {
++  accountBalance: 'Total account balance', balanceRefresh: 'Refresh balance', balanceLoading: 'Loading…', balanceFailed: 'Unavailable. Check your saved key and network.', balanceNotQueried: 'Not queried', balanceSavedKey: 'Uses the saved API key. Save changes before refreshing.',
+   nav: 'Models',
+   title: 'Models',
+   intro: 'Enter your API keys to use models from the following providers.',
+@@ -109,6 +110,7 @@ export type ModelsKey = keyof typeof en
+ 
+ /** Chinese strings (same keys as {@link en}). */
+ export const zh: { [Key in keyof typeof en]: string } = {
++  accountBalance: '账户总余额', balanceRefresh: '刷新余额', balanceLoading: '查询中…', balanceFailed: '查询失败，请检查已保存的密钥和网络', balanceNotQueried: '尚未查询', balanceSavedKey: '使用已保存的 API Key；修改密钥后请先保存。',
+   nav: '模型',
+   title: '模型',
+   intro: '填入各提供方的 API 密钥即可使用其模型。',
+diff --git a/packages/client/ui-settings-models/src/client/operations.ts b/packages/client/ui-settings-models/src/client/operations.ts
+index 8ca6beb..05699b3 100644
+--- a/packages/client/ui-settings-models/src/client/operations.ts
++++ b/packages/client/ui-settings-models/src/client/operations.ts
+@@ -32,6 +32,8 @@ export type ModelDiscoveryOutcome =
+ 
+ /** The Host operations the Models page and its cards invoke. */
+ export interface ModelsOperations {
++  /** Read the saved provider's balance; unavailable on older hosts. */
++  readAccountBalance?(provider: string): Promise<Array<{ currency: string; total: string; granted: string; toppedUp: string }>>
+   /**
+    * Read one credential reference's state.
+    * @param ref - credential reference name.
+@@ -81,6 +83,11 @@ export interface ModelsOperations {
+  */
+ export function createModelsOperations(ctx: ClientContext): ModelsOperations {
+   return {
++    async readAccountBalance(provider) {
++      const response = await ctx.remote.llm.accountBalance(provider)
++      if (!response.ok) throw new Error(response.error.message)
++      return response.value
++    },
+     describeCredential: async (ref) => {
+       const response = await ctx.remote.credentials.describe([ref])
+       return response.ok ? response.value[ref] : undefined
+diff --git a/packages/client/ui-settings-models/tests/account-balance.client.spec.tsx b/packages/client/ui-settings-models/tests/account-balance.client.spec.tsx
+new file mode 100644
+index 0000000..39185ea
+--- /dev/null
++++ b/packages/client/ui-settings-models/tests/account-balance.client.spec.tsx
+@@ -0,0 +1,25 @@
++// @vitest-environment jsdom
++import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
++import { afterEach, expect, it, vi } from 'vitest'
++import { AccountBalance } from '../src/client/AccountBalance.tsx'
++import type { ModelsOperations } from '../src/client/operations.ts'
++import { en } from '../src/client/locales.ts'
++
++afterEach(cleanup)
++it('queries only on refresh and renders the saved account total', async () => {
++  const readAccountBalance = vi.fn(async () => [{ currency: 'CNY', total: '12.3456', granted: '0', toppedUp: '12.3456' }])
++  render(<AccountBalance provider="deepseek-official" operations={{ readAccountBalance } as unknown as ModelsOperations} t={key => en[key]} />)
++  expect(readAccountBalance).not.toHaveBeenCalled()
++  fireEvent.click(screen.getByRole('button'))
++  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('CNY 12.3456'))
++  expect(readAccountBalance).toHaveBeenCalledWith('deepseek-official')
++})
++it('discards a previous balance after a failed refresh and never shows raw errors', async () => {
++  const readAccountBalance = vi.fn().mockResolvedValueOnce([{ currency: 'CNY', total: '10' }]).mockRejectedValueOnce(new Error('secret upstream payload'))
++  render(<AccountBalance provider="deepseek-official" operations={{ readAccountBalance } as unknown as ModelsOperations} t={key => en[key]} />)
++  fireEvent.click(screen.getByRole('button'))
++  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('CNY 10'))
++  fireEvent.click(screen.getByRole('button'))
++  await waitFor(() => expect(screen.getByRole('status').textContent).toBe(en.balanceFailed))
++  expect(screen.queryByText(/secret upstream payload/)).toBeNull()
++})
+diff --git a/packages/client/ui-settings-models/tests/components.client.spec.tsx b/packages/client/ui-settings-models/tests/components.client.spec.tsx
+index 0d72c77..1bf7d10 100644
+--- a/packages/client/ui-settings-models/tests/components.client.spec.tsx
++++ b/packages/client/ui-settings-models/tests/components.client.spec.tsx
+@@ -1252,7 +1252,7 @@ describe('ModelsSection', () => {
+     fireEvent.change(key, { target: { value: 'sk-live' } })
+     fireEvent.click(screen.getByText(en.apply))
+     await screen.findByText(/shadowed by the read-only environment/)
+-    expect(screen.queryByRole('status')).toBeNull()
++    expect(screen.queryByText(deepSeekCopy(en.savedProvider))).toBeNull()
+   })
+ 
+   it('locks the key input when the launch environment provides the credential', async () => {
+diff --git a/packages/llm/llm-deepseek/src/account-balance.ts b/packages/llm/llm-deepseek/src/account-balance.ts
+new file mode 100644
+index 0000000..44fb57a
+--- /dev/null
++++ b/packages/llm/llm-deepseek/src/account-balance.ts
+@@ -0,0 +1,35 @@
++/** Read-only DeepSeek account balance; credentials never enter the returned value. */
++export interface AccountBalance {
++  currency: string
++  total: string
++  granted: string
++  toppedUp: string
++}
++
++/**
++ * Query the official endpoint without following redirects with a bearer token.
++ * @param key - Host-resolved API key.
++ * @param signal - Caller cancellation.
++ * @returns Validated decimal balance rows.
++ */
++export async function fetchAccountBalance(key: string, signal?: AbortSignal): Promise<AccountBalance[]> {
++  const response = await fetch('https://api.deepseek.com/user/balance', {
++    headers: { Authorization: `Bearer ${key}` }, redirect: 'error',
++    signal: signal === undefined ? AbortSignal.timeout(10000) : AbortSignal.any([signal, AbortSignal.timeout(10000)]),
++  })
++  if (!response.ok) throw new Error(`Balance request failed (HTTP ${response.status})`)
++  const value: unknown = await response.json()
++  if (typeof value !== 'object' || value === null || !('balance_infos' in value)
++    || !Array.isArray(value.balance_infos) || value.balance_infos.length === 0) throw new Error('Invalid balance response')
++  return value.balance_infos.map((row: unknown) => {
++    if (typeof row !== 'object' || row === null) throw new Error('Invalid balance row')
++    const data = row as Record<string, unknown>
++    if (typeof data['currency'] !== 'string' || !['CNY', 'USD'].includes(data['currency'])) throw new Error('Invalid balance currency')
++    const amount = (name: string): string => {
++      const v = data[name]
++      if (typeof v !== 'string' || !/^-?\d+(?:\.\d+)?$/u.test(v)) throw new Error('Invalid balance amount')
++      return v
++    }
++    return { currency: data['currency'], total: amount('total_balance'), granted: amount('granted_balance'), toppedUp: amount('topped_up_balance') }
++  })
++}
+diff --git a/packages/llm/llm-deepseek/src/adapter.ts b/packages/llm/llm-deepseek/src/adapter.ts
+index be165c1..d299aa5 100644
+--- a/packages/llm/llm-deepseek/src/adapter.ts
++++ b/packages/llm/llm-deepseek/src/adapter.ts
+@@ -42,6 +42,7 @@ import { deepSeekImageRequestPricing, resolveRequestImagePolicy } from './reques
+ import { DeepSeekFileStore } from './file-store.ts'
+ import type { DeepSeekFilePolicy } from './file-store.ts'
+ import type { DeepSeekFileId } from './file-id.ts'
++import { fetchAccountBalance } from './account-balance.ts'
+ import { parseSse } from './sse.ts'
+ import { translate } from './translate.ts'
+ import type { WireError, WireRequest } from './types.ts'
+@@ -360,6 +361,14 @@ export function httpErrorCode(status: number, error?: WireError['error']): strin
+ export class DeepSeekAdapter extends LlmAdapter {
+   private readonly files: DeepSeekFileStore
+ 
++  /** Read the official account using the same saved connection and credential resolver as chat. */
++  override async accountBalance(signal?: AbortSignal) {
++    const connection = this.config.options()
++    const endpoint = new URL(connection.baseURL)
++    if (endpoint.origin !== 'https://api.deepseek.com') throw new Error('Balance is only available for the official DeepSeek endpoint')
++    return fetchAccountBalance(await this.config.resolveApiKey(connection), signal)
++  }
++
+   constructor(private readonly config: DeepSeekAdapterOptions) {
+     super()
+     this.files = config.resolveFiles?.() ?? new DeepSeekFileStore()
+diff --git a/packages/llm/llm-deepseek/tests/account-balance.spec.ts b/packages/llm/llm-deepseek/tests/account-balance.spec.ts
+new file mode 100644
+index 0000000..56f18ff
+--- /dev/null
++++ b/packages/llm/llm-deepseek/tests/account-balance.spec.ts
+@@ -0,0 +1,18 @@
++import { afterEach, expect, it, vi } from 'vitest'
++import { fetchAccountBalance } from '../src/account-balance.ts'
++afterEach(() => { vi.unstubAllGlobals() })
++it('returns decimal balances without the credential or raw provider fields', async () => {
++  const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ balance_infos: [{ currency: 'CNY', total_balance: '12.30', granted_balance: '2.30', topped_up_balance: '10.00' }] })))
++  vi.stubGlobal('fetch', request)
++  expect(await fetchAccountBalance('fixture-key')).toEqual([{ currency: 'CNY', total: '12.30', granted: '2.30', toppedUp: '10.00' }])
++  expect(request.mock.calls[0]?.[0]).toBe('https://api.deepseek.com/user/balance')
++  expect(request.mock.calls[0]?.[1].redirect).toBe('error')
++})
++it('keeps unknown balances unavailable instead of displaying zero', async () => {
++  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ balance_infos: [{ currency: 'CNY', total_balance: null }] }))))
++  await expect(fetchAccountBalance('fixture-key')).rejects.toThrow('Invalid balance amount')
++})
++it('rejects HTTP errors without reflecting the upstream error body', async () => {
++  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('private upstream text', { status: 401 })))
++  await expect(fetchAccountBalance('fixture-key')).rejects.toThrow('HTTP 401')
++})
+diff --git a/packages/llm/llm/src/index.ts b/packages/llm/llm/src/index.ts
+index 367688c..8b02266 100644
+--- a/packages/llm/llm/src/index.ts
++++ b/packages/llm/llm/src/index.ts
+@@ -278,6 +278,11 @@ export abstract class LlmAdapter {
+    * @param options - the fully-assembled request; implementations must honor `options.signal`.
+    * @returns the chunk stream, obeying the adapter contract documented on `StreamChunk`.
+    */
++  /** Return provider account balances when supported; no credentials leave the adapter. */
++  accountBalance(_signal?: AbortSignal): Promise<Array<{ currency: string; total: string; granted: string; toppedUp: string }>> {
++    return Promise.reject(new Error('Account balance is not supported by this provider'))
++  }
++
+   abstract stream(options: GenerateOptions): AsyncIterable<StreamChunk>
+ }
+ 
+@@ -616,6 +621,20 @@ export class LlmRuntime extends TypertRemoteService {
+     return models
+   }
+ 
++  /**
++   * Query the selected provider's saved account without returning credentials.
++   * @param provider - Registered provider route.
++   * @param signal - Caller cancellation supplied by the Remote carrier.
++   * @returns Validated decimal account balances.
++   */
++  @Remote('accountBalance')
++  async accountBalance(provider: string, signal: AbortSignal): Promise<Array<{ currency: string; total: string; granted: string; toppedUp: string }>> {
++    const registration = this.adapters.get(provider)
++    if (registration === undefined) throw new RemoteError('llm/balance-unavailable', 'Provider unavailable', { provider })
++    try { return await registration.adapter.accountBalance(signal) }
++    catch { throw new RemoteError('llm/balance-unavailable', 'Balance unavailable. Check the saved API key and network connection.', { provider }) }
++  }
++
+   /**
+    * Remote adapter for one draft provider interrogation.
+    * @param settingsNs - namespace whose registered discovery serves this draft.
+diff --git a/packages/llm/llm/src/types.ts b/packages/llm/llm/src/types.ts
+index bfddde7..0d61be9 100644
+--- a/packages/llm/llm/src/types.ts
++++ b/packages/llm/llm/src/types.ts
+@@ -273,6 +273,8 @@ export interface LlmModelDiscoveryOperation extends LlmModelDiscoveryRequest {
+ 
+ declare module '@deepseek-ai/dsh-typert-protocol' {
+   interface RemoteErrorDetailsMap {
++    /** A saved account balance could not be read. */
++    'llm/balance-unavailable': { readonly provider: string }
+     /** A draft provider interrogation refused or failed. */
+     'llm/model-discovery-rejected': {
+       readonly settingsNs: string
+diff --git a/packages/llm/token-meter/src/turn-usage.ts b/packages/llm/token-meter/src/turn-usage.ts
+index 56c1adc..4eaaaa2 100644
+--- a/packages/llm/token-meter/src/turn-usage.ts
++++ b/packages/llm/token-meter/src/turn-usage.ts
+@@ -11,6 +11,8 @@ export interface TurnTokenUsageRoute {
+ 
+ /** Exact provider-reported token accounting for every attempt in one completed Turn. */
+ export interface TurnTokenUsage {
++  /** Optional original attempts for versioned price estimates in the consumer. */
++  readonly attempts?: readonly (NormalizedAttempt & { readonly startedAt: number })[]
+   /** Sum of uncached prompt input across all attempts. */
+   readonly uncachedInputTokens: number
+   readonly outputTokens: number
+@@ -175,7 +177,9 @@ function sameAttempt(
+  * @param events - Turn-local durable events from `turn/start` through `turn/end`.
+  * @returns exact aggregate usage, or undefined when it cannot be proven.
+  */
+-export function deriveTurnTokenUsage(events: readonly SessionEvent[]): TurnTokenUsage | undefined {
++export function deriveTurnTokenUsage(events: readonly SessionEvent[], includeAttempts = false): TurnTokenUsage | undefined {
++  let startedAt = 0
++  const pricedAttempts: Array<NormalizedAttempt & { startedAt: number }> = []
+   let state: AttemptState = { kind: 'idle' }
+   const attempts: NormalizedAttempt[] = []
+   let turn: number | undefined
+@@ -187,10 +191,12 @@ export function deriveTurnTokenUsage(events: readonly SessionEvent[]): TurnToken
+     const normalized = normalizeUsage(state.sample, route)
+     if (normalized === undefined) return false
+     attempts.push(normalized)
++    pricedAttempts.push({ ...normalized, startedAt })
+     return true
+   }
+ 
+   for (const event of events) {
++    if (event.type === 'step/start' || event.type === 'llm/retry-started') startedAt = event.time
+     if (invalid) break
+     if (event.type === 'turn/start') {
+       if (turn !== undefined || state.kind !== 'idle') invalid = true
+@@ -270,5 +276,6 @@ export function deriveTurnTokenUsage(events: readonly SessionEvent[]): TurnToken
+     }
+   }
+ 
+-  return invalid || !sawEnd || state.kind !== 'idle' ? undefined : aggregateAttempts(attempts)
++  const result = invalid || !sawEnd || state.kind !== 'idle' ? undefined : aggregateAttempts(attempts)
++  return result === undefined || !includeAttempts ? result : { ...result, attempts: pricedAttempts }
+ }
+diff --git a/packages/llm/token-meter/tests/turn-usage.spec.ts b/packages/llm/token-meter/tests/turn-usage.spec.ts
+index ad3b648..aa2ae23 100644
+--- a/packages/llm/token-meter/tests/turn-usage.spec.ts
++++ b/packages/llm/token-meter/tests/turn-usage.spec.ts
+@@ -66,6 +66,14 @@ function completeAttempt(...middle: readonly SessionEvent[]): SessionEvent[] {
+ }
+ 
+ describe('deriveTurnTokenUsage', () => {
++  it('retains the original request start and model for cost estimates', () => {
++    const events = completeAttempt(message(3, usage(), 'deepseek-official', 'deepseek-flash'))
++    expect(deriveTurnTokenUsage(events, true)?.attempts).toEqual([{
++      startedAt: 2, inputTokens: 100, outputTokens: 20, totalTokens: 170,
++      cacheReadTokens: 50, route: { provider: 'deepseek-official', model: 'deepseek-flash' },
++    }])
++    expect(deriveTurnTokenUsage(events)?.attempts).toBeUndefined()
++  })
+   it('preserves authoritative totals and explicit optional buckets', () => {
+     expect(deriveTurnTokenUsage(completeAttempt(message(3, usage({
+       cacheWriteTokens: 0,
+diff --git a/packages/subprocess/subprocess-local/src/windows-job.ts b/packages/subprocess/subprocess-local/src/windows-job.ts
+index 56dac99..cdaad47 100644
+--- a/packages/subprocess/subprocess-local/src/windows-job.ts
++++ b/packages/subprocess/subprocess-local/src/windows-job.ts
+@@ -136,6 +136,7 @@ export function launchWindowsJob(
+       '--',
+       ...spec.argv,
+     ], {
++      windowsHide: process.platform === 'win32',
+       cwd: process.cwd(),
+       env: runnerEnvironment(WINDOWS_RUNNER_SELECTION, invocation),
+       stdio: runnerStdio(spec, true, ignoredStdinFd ?? 'pipe'),
+diff --git a/packages/subprocess/subprocess-local/tests/windows-job.spec.ts b/packages/subprocess/subprocess-local/tests/windows-job.spec.ts
+index 19fadad..092fd10 100644
+--- a/packages/subprocess/subprocess-local/tests/windows-job.spec.ts
++++ b/packages/subprocess/subprocess-local/tests/windows-job.spec.ts
+@@ -94,6 +94,7 @@ describe('Windows Job capability', () => {
+ 
+       const result = isolated.launchWindowsJob(spec, { TARGET: 'yes' })
+       expect(spawn).toHaveBeenCalledOnce()
++      expect(spawn).toHaveBeenCalledWith(expect.any(String), expect.any(Array), expect.objectContaining({ windowsHide: process.platform === 'win32' }))
+       child.emit('spawn')
+       child.emit('message', { type: 'target-exit', exitCode: 0 })
+       child.connected = false
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index be1647c..b4a8654 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -564,15 +564,15 @@ importers:
+       '@deepseek-ai/dsh-client-modules':
+         specifier: workspace:^
+         version: link:../../packages/client/modules
+-      '@deepseek-ai/dsh-client-ui-directory-picker-native':
++      '@deepseek-ai/dsh-client-ui-directory-picker-browse':
+         specifier: workspace:^
+-        version: link:../../packages/client/ui-directory-picker-native
++        version: link:../../packages/client/ui-directory-picker-browse
+       '@deepseek-ai/dsh-cmdline':
+         specifier: workspace:^
+         version: link:../../packages/boot/cmdline
+-      '@deepseek-ai/dsh-host-directory-picker-native':
++      '@deepseek-ai/dsh-host-directory-picker-browse':
+         specifier: workspace:^
+-        version: link:../../packages/host/directory-picker-native
++        version: link:../../packages/host/directory-picker-browse
+       '@deepseek-ai/dsh-host-webserver':
+         specifier: workspace:^
+         version: link:../../packages/host/webserver

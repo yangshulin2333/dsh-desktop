@@ -1,0 +1,137 @@
+DSH Desktop Community verification
+Date: 2026-09-13
+Upstream: fb2c4b9e698e30edb738bca4cf0618587db7d203
+Host: Windows 11 x64. Windows 10 hardware NOT tested.
+Balance fixtures are mocked; no real paid API request or live balance query was made.
+
+BASELINE
+COMMAND ["C:\\Program Files\\nodejs\\node.exe","--disable-warning=ExperimentalWarning","C:\\Users\\14176\\Documents\\Codex\\2026-09-12\\https-github-com-yangshulin2333-dsh-desktop\\outputs\\community-v0.1.5-rc.2\\VERIFY-SOURCE.mjs","C:\\Users\\14176\\Documents\\Codex\\2026-09-12\\https-github-com-yangshulin2333-dsh-desktop\\outputs\\community-v0.1.5-rc.2\\BASELINE_SOURCE.tar.gz"]
+STDOUT
+{"sha256":"a543d54710414aab248f562413db8c8417b076c34ff186503795c1fe2ee2e219","costCny":null,"balanceFixture":null,"picker":"native"}
+STDERR
+EXIT 0
+
+MODIFIED
+COMMAND ["C:\\Program Files\\nodejs\\node.exe","--disable-warning=ExperimentalWarning","C:\\Users\\14176\\Documents\\Codex\\2026-09-12\\https-github-com-yangshulin2333-dsh-desktop\\outputs\\community-v0.1.5-rc.2\\VERIFY-SOURCE.mjs","C:\\Users\\14176\\Documents\\Codex\\2026-09-12\\https-github-com-yangshulin2333-dsh-desktop\\outputs\\community-v0.1.5-rc.2\\MODIFIED_FILE.tar.gz"]
+STDOUT
+{"sha256":"4ee05cde8a040e4d1f3129196126d6bf01bdfcddf5f23d4790b18e10ef2a991b","costCny":5.02,"balanceFixture":"12.3456","picker":"browse"}
+STDERR
+EXIT 0
+
+ROLLBACK_EXECUTION
+COMMAND ["C:/Program Files/Git/bin/bash.exe","C:\\Users\\14176\\Documents\\Codex\\2026-09-12\\https-github-com-yangshulin2333-dsh-desktop\\outputs\\community-v0.1.5-rc.2\\ROLLBACK.sh","C:\\Users\\14176\\Documents\\Codex\\2026-09-12\\https-github-com-yangshulin2333-dsh-desktop\\work\\community-rollback\\MODIFIED_FILE.tar.gz"]
+STDOUT
+ROLLBACK: pristine source archive restored and byte-verified
+STDERR
+EXIT 0
+
+ROLLBACK
+COMMAND ["C:\\Program Files\\nodejs\\node.exe","--disable-warning=ExperimentalWarning","C:\\Users\\14176\\Documents\\Codex\\2026-09-12\\https-github-com-yangshulin2333-dsh-desktop\\outputs\\community-v0.1.5-rc.2\\VERIFY-SOURCE.mjs","C:\\Users\\14176\\Documents\\Codex\\2026-09-12\\https-github-com-yangshulin2333-dsh-desktop\\work\\community-rollback\\MODIFIED_FILE.tar.gz"]
+STDOUT
+{"sha256":"a543d54710414aab248f562413db8c8417b076c34ff186503795c1fe2ee2e219","costCny":null,"balanceFixture":null,"picker":"native"}
+STDERR
+EXIT 0
+
+REAPPLY_DELTA
+COMMAND ["git","apply","--binary","C:\\Users\\14176\\Documents\\Codex\\2026-09-12\\https-github-com-yangshulin2333-dsh-desktop\\outputs\\community-v0.1.5-rc.2\\DIFF_FILE.patch"]
+STDOUT
+STDERR
+EXIT 0
+
+Reconstructed MODIFIED_FILE hash matches original modified archive: 4ee05cde8a040e4d1f3129196126d6bf01bdfcddf5f23d4790b18e10ef2a991b
+
+LOG official-features-test-v2.log
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+
+ RUN  v4.1.8 D:/AI/dsh-official-installer
+
+
+ Test Files  6 passed (6)
+      Tests  77 passed (77)
+   Start at  00:03:27
+   Duration  1.17s (transform 1.26s, setup 1.06s, import 613ms, tests 917ms, environment 632ms)
+
+
+LOG official-regression-tests.log
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+
+ RUN  v4.1.8 D:/AI/dsh-official-installer
+
+ ❯ |thread-safe| packages/client/ui-settings-models/tests/components.client.spec.tsx (85 tests | 1 failed) 1226ms
+     × surfaces a shadowed credential write on the card 28ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |thread-safe| packages/client/ui-settings-models/tests/components.client.spec.tsx > ModelsSection > surfaces a shadowed credential write on the card
+AssertionError: expected <span role="status"></span> to be null
+
+- Expected:
+null
+
++ Received:
+<span
+  role="status"
+>
+  Not queried
+</span>
+
+ ❯ packages/client/ui-settings-models/tests/components.client.spec.tsx:1255:42
+    1253|     fireEvent.click(screen.getByText(en.apply))
+    1254|     await screen.findByText(/shadowed by the read-only environment/)
+    1255|     expect(screen.queryByRole('status')).toBeNull()
+       |                                          ^
+    1256|   })
+    1257|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 4 passed (5)
+      Tests  1 failed | 106 passed (107)
+   Start at  00:08:25
+   Duration  4.02s (transform 3.11s, setup 829ms, import 3.95s, tests 2.57s, environment 1.19s)
+
+
+LOG official-regression-recheck.log
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+
+ RUN  v4.1.8 D:/AI/dsh-official-installer
+
+
+ Test Files  1 passed (1)
+      Tests  85 passed (85)
+   Start at  00:10:34
+   Duration  4.13s (transform 1.41s, setup 198ms, import 1.99s, tests 1.22s, environment 586ms)
+
+
+LOG official-installed-smoke.log
+{"home":"C:\\Users\\14176\\Documents\\Codex\\2026-09-12\\https-github-com-yangshulin2333-dsh-desktop\\work\\clean-home-jJRmBU","path":"C:\\Windows\\System32;C:\\Windows\\System32\\WindowsPowerShell\\v1.0","preinstalledNode":false,"versions":{"schemaVersion":1,"node":"24.17.0","pnpm":"11.7.0"}}
+STAGING_READY {"type":"ready","protocolVersion":3,"dshVersion":"0.1.5-rc.2"}
+OFFLINE_INSTALL true
+ACTIVE_READY {"type":"ready","protocolVersion":3,"dshVersion":"0.1.5-rc.2"}
+APP_HTML 200 27648
+PICKER_COMPOSITION browse
+BALANCE_BUNDLED true
+COST_UI_BUNDLED true
+NO_OFFICIAL_UPDATER true
+SECOND_START_REINSTALL false
+
+
+Installer execution: Start-Process Setup.exe /S /D=D:\AI\dsh-official-installer-smoke -Wait; observed INSTALL_EXIT=0.
+Unsigned community installer: Authenticode NotSigned.
+BASELINE_SOURCE.tar.gz SHA256 a543d54710414aab248f562413db8c8417b076c34ff186503795c1fe2ee2e219
+DIFF_FILE.patch SHA256 4efe598606087138a7d49a44cdb2b3a0818d996a3f8fb4043d884304b5037492
+DSH-Desktop-Community-0.1.5-rc.2-Setup-x64.exe SHA256 5c9559208b4a47619c0c04364cf2ed09ea5df7c086f05fa70a5d69242e3175c5
+MODIFIED_FILE.tar.gz SHA256 4ee05cde8a040e4d1f3129196126d6bf01bdfcddf5f23d4790b18e10ef2a991b
+ROLLBACK.sh SHA256 e08c959b02f176216e000c0cd03a592beb5c8a66c745f4472fdfaf17fd721e22
+upstream.patch SHA256 379191c5395c2ae2f8acc4550f4e7c78708547824ba3be2abc6701a7897a7e08
+VERIFY-SOURCE.mjs SHA256 b59ca9717528fa45487332996dd4bbc78db6b5ce2a02e1c4ba307d4b7d84a098
+
+SUMMARY: 77 feature-focused tests passed; 107 regression tests passed after narrowing the pre-existing saved-notice assertion (85-test affected suite rerun passed). Total 184 distinct tests across 11 files. Source patch applies cleanly to the unchanged upstream clone. Build script PowerShell syntax passed. Test installer was uninstalled after verification: exit 0.
+

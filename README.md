@@ -1,74 +1,40 @@
-# DSH Desktop
+# DSH Desktop 社区安装版
 
-面向 Windows 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 桌面客户端。下载成品 EXE 即可使用，无需另装 Node.js、pnpm 或运行命令行。
+基于 [DeepSeek 官方 Harness](https://github.com/deepseek-ai/deepseek-harness) 桌面程序制作的 Windows 一键安装包，内置 Node.js、pnpm 和运行依赖，并增加**每次使用的费用估算**和**账户总余额查询**。
 
-> 本项目是非官方社区项目，不由 DeepSeek 开发、背书或提供支持。客户端与后端在本地运行，模型推理仍调用云端 API，需要联网和 DeepSeek API Key，并按 API 使用情况计费；不是离线模型。
+这是社区打包与修改版，不是 DeepSeek 官方发行包。当前为预发布测试版：本机 Windows 11 已验证，Windows 10 实机仍待验收。
 
-## 下载与使用
+## 点哪里下载、怎么安装
 
-**Win10 或遇到目录选择/重复启动报错：请使用 [0.1.3 修复预览版](https://github.com/yangshulin2333/dsh-desktop/releases/tag/v0.1.3)。0.1.2 已确认存在重复启动清理依赖的问题。新版仍待 Win10 实机复测，详见[验证记录](docs/validation-0.1.3.md)。**
+**[下载 Windows 64 位安装 EXE](https://github.com/yangshulin2333/dsh-desktop/releases/download/v0.1.5-rc.2-community.1/DSH-Desktop-Community-0.1.5-rc.2-Setup-x64.exe)** · [发布说明与校验文件](https://github.com/yangshulin2333/dsh-desktop/releases/tag/v0.1.5-rc.2-community.1)
 
-**普通用户请选择下面的 EXE，不要下载 Code → Download ZIP 或 Release 中的 Source code：那些是源码，里面没有可直接运行的程序。**
+1. 下载上面的 `Setup-x64.exe`，双击安装。
+2. 从桌面打开 **DSH Desktop Community**，等待首次本地初始化。
+3. 填写并保存自己的 DeepSeek API Key，选择工作目录后使用。
 
-| 版本 | 下载 | 怎么用 |
-| --- | --- | --- |
-| 便携版（推荐） | [下载 Portable 0.1.2](https://github.com/yangshulin2333/dsh-desktop/releases/download/v0.1.2/DSH-Desktop-Portable-0.1.2-x64.exe) | 放到固定文件夹，双击 EXE 启动，无需手动解压 |
-| 安装版 | [下载 Setup 0.1.2](https://github.com/yangshulin2333/dsh-desktop/releases/download/v0.1.2/DSH-Desktop-Setup-0.1.2-x64.exe) | 双击，按向导选择安装目录，之后从桌面或开始菜单启动 |
+不需要另外安装 Node 或 pnpm，不需要执行命令行。首次依赖初始化可离线完成；模型调用和余额查询需要联网。
 
-[查看发布页与校验文件](https://github.com/yangshulin2333/dsh-desktop/releases/tag/v0.1.2)。当前提供 Windows x64 包，两个版本选一个即可。
+**Code → Download ZIP 和 Source code 是源码，不是安装程序。** 当前提供安装版；旧便携版资料保留在仓库历史说明中。
 
-1. 下载便携版或安装版。
-2. 启动后按提示填写 [DeepSeek API Key](https://platform.deepseek.com/api_keys)。请勿把密钥发到 Issues 或公开仓库。
-3. 在应用里选择工作目录并开始对话。
+## 两个新增功能
 
-构建未签名，Windows 可能显示发布者未知提示。请核对下载来源和发布页的 SHA-256。此发布沿用已有 0.1.2 成品，未重新构建；已有自动验证，但全新电脑安装、安装器和便携启动器的完整交互验收仍待完成，详见[验证记录](docs/validation-0.1.2.md)。
+- **费用估算**：回答下方的用量按钮显示本轮估算费用，点击后查看各次请求金额。按请求原模型、时间、缓存命中和输出用量计算，显示人民币。统计不足或模型未知时显示无法估算。
+- **账户总余额**：在设置 → 模型 → DeepSeek 的编辑页，点击“刷新余额”。使用已经保存的 API Key 查询官方账户余额；更换密钥后须先保存。
 
-## 功能
+估价表依据 [2026-09-12 官方人民币价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)，金额是估算，实际扣费以账户账单为准。价格变化需要更新本版本的价格表。
 
-- 将 Harness 包装为独立桌面窗口。
-- 在输入框下方显示当前会话的人民币费用估算，例如 `约 ¥0.02`。
-- 在 Settings → Models → DeepSeek 的 API Key 下方显示账户余额。
+## 安装与数据
 
-估算方法与边界见[补丁说明](docs/patches.md)，实际费用以账户账单为准。
+安装包约 161 MB，当前用户安装，不要求预装开发工具。默认数据放在 `%APPDATA%\DSH Desktop Community\harness-home`，与旧版数据分开；旧会话和密钥不会自动迁移。显式设置 `DSH_HOME` 时使用该路径。
 
-## 数据目录与升级
+此包未签名，Windows 可能显示“未知发布者”。请核对本仓库下载地址和发布页 SHA-256。社区版不连接官方自动更新源；更新时下载新的社区安装包。
 
-桌面版使用独立数据目录：
+## 已验证与待验证
 
-```text
-%APPDATA%\DSH Desktop\dsh-home
-```
+已验证安装 EXE 成功退出；从实际安装后的文件，使用全新数据目录和不含 Node 的 PATH 完成离线安装、真实后端启动、页面 HTML 加载及第二次启动检查。费用计算、余额显示和相关回归检查已通过。目录选择使用官方已有的应用内浏览组件。
 
-会话与 API Key 和命令行版的 `~/.dsh` 分开存放，避免两边插件配置相互影响。
+尚未完成：对方 Windows 10 实机操作、真实付费请求、真实账户余额，以及完整桌面界面的人工验收。不要把这些本机检查理解为 Win10 已通过。
 
-从 0.1.1 升级时，先取消固定旧 Electron 项并完全退出旧版，再启动新版并重新固定任务栏。便携版固定后不要移动或删除 EXE。详情见[任务栏验收记录](docs/validation-0.1.2.md)。
+## 源码与复现
 
-## 从源码构建（开发者）
-
-需要 Node.js `^22.19.0 || >=24.0.0`、pnpm、Git，以及已构建的带补丁 Harness 源码。完整恢复步骤、源码版本与限制见[可复现构建指南](docs/reproducible-build.md)。
-
-```bash
-git clone https://github.com/yangshulin2333/dsh-desktop.git
-cd dsh-desktop
-npm ci
-# 先按构建指南恢复 Harness 补丁并执行 pnpm run build
-node scripts/build-runtime.mjs --harness /path/to/deepseek-harness
-npm start
-# 运行检查与生成安装版、便携版
-npm test
-npm run dist
-```
-
-`--harness` 必须指向已编译的补丁源码。输出目录须不存在或为空，不要覆盖已有的 `dist/0.1.2/`。仅研究上游原版时可用 `--upstream-only`，它不等于本项目的完整桌面发行版。
-
-当前源码工具链与已保留的 0.1.2 成品构建工具版本不同；本次发布的是原始成品，哈希见[产物记录](docs/release-0.1.2.json)。验证新构建时需检查实际 EXE 和打包后的后端，不能仅以打包命令成功作为验收。
-
-## 开发与验证资料
-
-- [完整英文技术说明](README.en.md)：运行原理、资源复制边界、Electron 要求、签名与打包问题。
-- [工具链维护记录](docs/toolchain-hardening-2026-08-27.md)：依赖检查、实际产物验证及回滚说明。
-- [源码公开记录（2026-08-27，历史状态）](docs/publication-2026-08-27.md)。安装包发布以当前 Releases 为准。
-
-## 许可证
-
-[MIT](LICENSE)。DeepSeek Harness 在构建时从公共 npm 仓库获取，源码恢复补丁保留[上游 MIT 许可证](patches/LICENSE.deepseek-harness)。
+仓库 `official-community` 目录提供源码补丁、上游固定版本和构建脚本。Release 同时提供完整源码、验证记录和源码回滚材料。仓库根目录保留旧版外壳代码，新安装版使用 `official-community` 中的构建入口。
