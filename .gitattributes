@@ -1,3 +1,4 @@
 # Empty context lines in a unified diff contain a required space.
 patches/*.patch -text whitespace=-blank-at-eol
+official-community/*.patch -text whitespace=-blank-at-eol
 runtime-lock/pnpm-lock.yaml -text
