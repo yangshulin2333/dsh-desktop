@@ -6,6 +6,8 @@
 
 ## 下载与使用
 
+**Win10 或遇到目录选择/重复启动报错：请使用 [0.1.3 修复预览版](https://github.com/yangshulin2333/dsh-desktop/releases/tag/v0.1.3)。0.1.2 已确认存在重复启动清理依赖的问题。新版仍待 Win10 实机复测，详见[验证记录](docs/validation-0.1.3.md)。**
+
 **普通用户请选择下面的 EXE，不要下载 Code → Download ZIP 或 Release 中的 Source code：那些是源码，里面没有可直接运行的程序。**
 
 | 版本 | 下载 | 怎么用 |

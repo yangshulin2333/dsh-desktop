@@ -1,14 +1,14 @@
 {
   "name": "dsh-desktop",
   "productName": "DSH Desktop",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "An unofficial desktop client for DeepSeek Harness, with per-conversation CNY spend and an account balance readout.",
   "license": "MIT",
   "main": "main.js",
   "scripts": {
     "postinstall": "node node_modules/electron/install.js",
-    "test": "node --test tests/runtime-staging.test.mjs tests/runtime-packaging.test.cjs tests/picker-runtime.test.cjs tests/runtime-startup.test.cjs tests/windows-branding.test.cjs tests/taskbar-identity.test.cjs",
+    "test": "node --test tests/runtime-staging.test.mjs tests/runtime-packaging.test.cjs tests/picker-runtime.test.cjs tests/runtime-startup.test.cjs tests/windows-branding.test.cjs tests/taskbar-identity.test.cjs tests/desktop-compat.test.mjs",
     "test:build": "node --test tests/runtime-staging.test.mjs tests/runtime-packaging.test.cjs tests/windows-branding.test.cjs tests/taskbar-identity.test.cjs",
     "test:artifact": "node --test tests/windows-artifact.test.cjs",
     "audit:build": "npm audit --audit-level=high",
@@ -85,7 +85,8 @@
       "artifactName": "DSH-Desktop-Setup-${version}-${arch}.${ext}"
     },
     "portable": {
-      "artifactName": "DSH-Desktop-Portable-${version}-${arch}.${ext}"
+      "artifactName": "DSH-Desktop-Portable-${version}-${arch}.${ext}",
+      "unpackDirName": true
     },
     "compression": "maximum"
   }

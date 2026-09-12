@@ -144,6 +144,7 @@ function startHarness(port) {
         // not inherit them or the harness misreads its own argv.
         ELECTRON_NO_ATTACH_CONSOLE: '1',
         DSH_HOME: harnessHome(),
+        DSH_DESKTOP: '1',
       },
     },
   )

@@ -3,6 +3,7 @@
  * See docs/reproducible-build.md for source recovery and fresh-output builds.
  * pnpm deploy cannot supply this harness's complete runtime dependency closure.
  */
+import { applyDesktopCompat } from './desktop-compat.mjs'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -81,6 +82,7 @@ function main() {
     overlays.push({ name, entries: Object.fromEntries(entries.map(entry => [entry, sha256(join(to, entry))])) })
     console.log(`  overlaid ${name}`)
   }
+  if (plan.harnessRoot !== null) applyDesktopCompat(runtimeDir)
   const lockSha256 = sha256(plan.lockFiles['pnpm-lock.yaml'])
   if (sha256(join(runtimeDir, 'pnpm-lock.yaml')) !== lockSha256) {
     throw new Error('build-runtime: installation changed the checked-in lockfile')
